@@ -3,11 +3,12 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { User } from 'rdbms/entities/User.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppwriteService } from 'src/appwrite/appwrite.service';
+import { OtpLog } from 'rdbms/entities/OtpLog.entity';
+import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
-  providers: [AuthService, AppwriteService],
+  imports: [TypeOrmModule.forFeature([User, OtpLog, RefreshToken])],
+  providers: [AuthService],
   controllers: [AuthController],
 })
 export class AuthModule {}

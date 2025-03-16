@@ -4,30 +4,28 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { AppwriteService } from 'src/appwrite/appwrite.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(private readonly appwriteService: AppwriteService) {}
+  constructor(private jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers['authorization'];
-
     if (!authHeader) {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException('Invalid header credentials');
     }
 
     const jwt = authHeader.replace('Bearer ', ''); // Extract JWT
-
     try {
-      const user = await this.appwriteService.getUser(jwt);
-      request.user = user; // Attach user to request
+      const payload = this.jwtService.verify(jwt);
+      request.userId = payload.userId; // Attach user to request
       request.jwt = jwt;
       return true;
     } catch (error) {
-      throw new UnauthorizedException('Invalid or expired JWT');
+      console.error('Error: ', error);
+      throw new UnauthorizedException('Invalid JWT');
     }
   }
 }

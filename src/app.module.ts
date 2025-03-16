@@ -2,28 +2,63 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppwriteModule } from './appwrite/appwrite.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { User } from 'rdbms/entities/User.entity';
+import { Property } from 'rdbms/entities/Property.entity';
+import { Review } from 'rdbms/entities/Review.entity';
+import { Transaction } from 'rdbms/entities/Transaction.entity';
+import { Wallet } from 'rdbms/entities/Wallet.entity';
+import { Booking } from 'rdbms/entities/Booking.entity';
+import { UserModule } from './user/user.module';
+import { OtpLog } from 'rdbms/entities/OtpLog.entity';
+import { JwtModule } from '@nestjs/jwt';
+import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'Kay80704080.',
-      database: 'percher',
-      entities: [User],
-      synchronize: true,
-    }),
     ConfigModule.forRoot({
       isGlobal: true, // Makes config available throughout the app
+      cache: true,
     }),
-    AppwriteModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: {
+          // expiresIn: '1h',
+          expiresIn: '1m',
+        },
+      }),
+      global: true,
+      inject: [ConfigService],
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get<string>('DB_HOST', 'localhost'),
+        port: configService.get<number>('DB_PORT', 5432),
+        username: configService.get<string>('DB_USERNAME', 'postgres'),
+        password: configService.get<string>('DB_PASSWORD', 'password'),
+        database: configService.get<string>('DB_NAME', 'mydatabase'),
+        entities: [
+          User,
+          Property,
+          Review,
+          Transaction,
+          Wallet,
+          Booking,
+          OtpLog,
+          RefreshToken,
+        ],
+        migrations: ['dist/migrations/*.js'], // Use compiled migrations
+        synchronize: true, // Ensure this is FALSE when using migrations
+      }),
+    }),
     AuthModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,26 +1,17 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-  ManyToOne,
-  Index,
-  PrimaryColumn,
-} from 'typeorm';
-// import { Booking } from './booking.entity';
-// import { Property } from './property.entity';
-// import { Wallet } from './wallet.entity';
-// import { Referral } from './referral.entity';
-// import { BankAccount } from './bankAccount.entity';
+import { Entity, Column, OneToMany, ManyToOne, Index, OneToOne } from 'typeorm';
+import { BaseEntity } from './Base.entity';
+import { Booking } from './Booking.entity';
+import { Property } from './Property.entity';
+import { Wallet } from './Wallet.entity';
 
 @Entity('users')
-export class User {
-  @PrimaryColumn()
-  id: string;
-
+export class User extends BaseEntity {
   @Column({ unique: true })
   @Index() // Users will frequently be queried by email
   email: string;
+
+  @Column({ nullable: true })
+  password?: string;
 
   @Column()
   name?: string;
@@ -31,30 +22,30 @@ export class User {
   @Column({ nullable: true })
   profilePicture?: string;
 
-  @Column({ type: 'enum', enum: ['guest', 'host', 'admin'], default: 'guest' })
-  role?: string;
-
   @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
   referredBy?: User;
 
   @OneToMany(() => User, (user) => user.referredBy)
   referredUsers?: User[];
 
-  // @OneToMany(() => Property, (property) => property.host)
-  // properties: Property[];
+  @Column()
+  referralCode: string;
 
-  // @OneToMany(() => Booking, (booking) => booking.guest)
-  // guestBookings: Booking[];
+  @Column({ default: 0 })
+  referralPoints: number;
 
-  // @OneToMany(() => Booking, (booking) => booking.host)
-  // hostBookings: Booking[];
+  @Column({ default: 0 })
+  referralCount: number;
 
-  // @OneToMany(() => Referral, (referral) => referral.referrer)
-  // referrals: Referral[];
+  @OneToMany(() => Property, (property) => property.host)
+  properties: Property[];
 
-  // @OneToMany(() => BankAccount, (bank) => bank.user)
-  // bankAccounts: BankAccount[];
+  @OneToMany(() => Booking, (booking) => booking.guest)
+  guestBookings: Booking[];
 
-  // @OneToMany(() => Wallet, (wallet) => wallet.user)
-  // wallet: Wallet;
+  @OneToMany(() => Booking, (booking) => booking.host)
+  hostBookings: Booking[];
+
+  @OneToOne(() => Wallet, (wallet) => wallet.user)
+  wallet: Wallet;
 }

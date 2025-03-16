@@ -3,11 +3,17 @@ import {
   Post,
   Body,
   Get,
-  UseGuards,
   Request,
+  Param,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { User } from 'rdbms/entities/User.entity';
+import { OAuthRequest } from 'interfaces';
+import { SignInDto } from './dto/signin-auth.dto';
+import { ResetPasswordDto } from './dto/resetpassword-auth.dto';
+import { CreateAuthDto } from './dto/create-auth.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from 'guards/jwt-auth.guard';
 
 @Controller('auth')
@@ -17,16 +23,41 @@ export class AuthController {
   @Get()
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req) {
-    return req.user; // 🔹 User is automatically available in request
+    return this.authService.findUserByUserId(req.user);
+  }
+
+  @Post('register')
+  async register(@Body() user: CreateAuthDto) {
+    return this.authService.register(user);
   }
 
   @Post('login')
-  async login(@Body('jwt') jwt: string) {
-    return await this.authService.authenticateUser(jwt);
+  async login(@Body() user: SignInDto) {
+    return this.authService.login(user);
   }
 
-  @Post('verify-email')
-  async verifyEmailExists(@Body('email') email: string) {
-    return await this.authService.verifyEmailExists(email);
+  @Post('/oauth')
+  async loginWithOAuth(@Body() details: OAuthRequest) {
+    return this.authService.loginWithOAuth(details);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() details: ResetPasswordDto) {
+    return this.authService.resetPassword(details);
+  }
+
+  @Get('check')
+  findUserByEmail(@Body() email: string) {
+    return this.authService.verifyUserByEmail(email);
+  }
+
+  @Get('verify/:token')
+  verifyOTP(@Param('token') token: string, @Query('email') email: string) {
+    return this.authService.verifyOTP(token, email);
+  }
+
+  @Post('refresh')
+  async refreshTokens(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshTokens(refreshTokenDto.refreshToken);
   }
 }
