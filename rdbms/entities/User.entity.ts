@@ -20,7 +20,7 @@ export class User extends BaseEntity {
   phone?: string;
 
   @Column({ nullable: true })
-  profilePicture?: string;
+  avatar?: string;
 
   @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
   referredBy?: User;

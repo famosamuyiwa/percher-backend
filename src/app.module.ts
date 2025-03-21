@@ -26,8 +26,7 @@ import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          // expiresIn: '1h',
-          expiresIn: '1m',
+          expiresIn: '1h',
         },
       }),
       global: true,

@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ApiResponse, ResponseStatus } from 'interfaces';
+import { ApiResponse } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { Repository } from 'typeorm';
 import { handleError } from 'utils/helper-methods';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ResponseStatus } from 'enums';
 
 @Injectable()
 export class UserService {
@@ -42,7 +43,7 @@ export class UserService {
       });
 
       if (!user) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+        throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
       }
 
       await this.userRepository.save(user);

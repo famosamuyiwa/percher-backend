@@ -17,12 +17,13 @@ import {
   generateReferralCode,
   handleError,
 } from 'utils/helper-methods';
-import { ApiResponse, OAuthRequest, ResponseStatus } from 'interfaces';
+import { ApiResponse, OAuthRequest } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { ResponseStatus } from 'enums';
 
 @Injectable()
 export class AuthService {
@@ -112,7 +113,7 @@ export class AuthService {
       if (!user || !(await bcrypt.compare(password, user.password))) {
         throw new HttpException(
           `Invalid username or password!`,
-          HttpStatus.UNAUTHORIZED,
+          HttpStatus.BAD_REQUEST,
         );
       }
 
@@ -156,6 +157,20 @@ export class AuthService {
         status: ResponseStatus.SUCCESS,
         message: 'User logged in successfully',
         data: await this.generateUserTokens(user.id),
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async logout(userId: string) {
+    try {
+      await this.dropRefreshToken(userId);
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'User logged out successfully',
+        data: null,
       };
     } catch (err) {
       handleError(err);
@@ -291,16 +306,13 @@ export class AuthService {
         where: { email },
       });
 
-      if (user)
-        throw new HttpException(
-          'User with email already exists',
-          HttpStatus.BAD_REQUEST,
-        );
+      if (!user)
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
 
       const payload: ApiResponse = {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
-        message: 'User fetched successfully',
+        message: 'User with email already exists',
         data: null,
       };
 
@@ -325,7 +337,7 @@ export class AuthService {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
         message: 'User fetched successfully',
-        data: null,
+        data: user,
       };
       return payload;
     } catch (err) {
@@ -358,6 +370,11 @@ export class AuthService {
     });
 
     await this.refreshTokenRepository.save(tokenData);
+  }
+
+  async dropRefreshToken(userId) {
+    //delete previous token
+    await this.refreshTokenRepository.delete({ userId });
   }
 
   async refreshTokens(refreshToken: string) {

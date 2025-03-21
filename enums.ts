@@ -1,0 +1,37 @@
+export enum Facility {
+  LAUNDRY = 'Laundry',
+  GARAGE = 'Garage',
+  GYM = 'Gym',
+  WIFI = 'Wifi',
+}
+
+export enum PerchTypes {
+  HOUSE = 'House',
+  CONDO = 'Condo',
+  DUPLEX = 'Duplex',
+  STUDIO = 'Studio',
+  VILLA = 'Villa',
+  APARTMENT = 'Apartment',
+  OTHERS = 'Others',
+}
+
+export enum ChargeType {
+  NIGHTLY = 'Nightly',
+  MONTHLY = 'Monthly',
+  YEARLY = 'Yearly',
+}
+
+export enum QueryBy {
+  EMAIL = 'email',
+}
+
+export enum ResponseStatus {
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+}
+
+export enum LoginProvider {
+  GOOGLE = 'google',
+  APPLE = 'apple',
+  MAIL = 'mail',
+}

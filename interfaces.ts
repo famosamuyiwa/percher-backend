@@ -1,19 +1,10 @@
+import { LoginProvider } from 'enums';
+
 export interface ApiResponse<T = any> {
   code: number;
   status: string;
   message: string;
   data: T;
-}
-
-export enum ResponseStatus {
-  SUCCESS = 'SUCCESS',
-  FAILED = 'FAILED',
-}
-
-export enum LoginProvider {
-  GOOGLE = 'google',
-  APPLE = 'apple',
-  MAIL = 'mail',
 }
 
 export interface OAuthRequest {
@@ -22,6 +13,22 @@ export interface OAuthRequest {
   email: string;
 }
 
-export enum QueryBy {
-  EMAIL = 'email',
+export interface PerchRegistrationFormData {
+  propertyName: string;
+  propertyType: string;
+  chargeType: string;
+  beds: number;
+  bathrooms: number;
+  description: string;
+  header: string;
+  location: string;
+  price: number;
+  cautionFee: number;
+  gallery: string[];
+  proofOfOwnership: string[];
+  proofOfIdentity: string[];
+  txc: boolean;
+  facilities: string[];
+  checkInTimes: string[];
+  checkOutTime: string;
 }
