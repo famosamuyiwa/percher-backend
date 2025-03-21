@@ -14,6 +14,7 @@ import { UserModule } from './user/user.module';
 import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
+import { PropertyModule } from './property/property.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
     }),
     AuthModule,
     UserModule,
+    PropertyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

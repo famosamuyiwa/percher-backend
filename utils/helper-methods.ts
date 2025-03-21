@@ -1,11 +1,5 @@
 // src/utils/validation-log.helper.ts
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-
-export class Utils {
-  private readonly log = new Logger(Utils.name);
-
-  constructor() {}
-}
+import { HttpException, HttpStatus } from '@nestjs/common';
 
 export async function handleResponse(response) {
   try {
@@ -44,6 +38,7 @@ export const to2DecimalPoints = (value: number) => {
 };
 
 export const handleError = (err) => {
+  console.error(err);
   if (err instanceof HttpException) {
     throw err;
   } else {

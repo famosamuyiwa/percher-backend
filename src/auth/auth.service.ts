@@ -324,7 +324,7 @@ export class AuthService {
     }
   }
 
-  async findUserByUserId(id: string) {
+  async findUserByUserId(id: number) {
     try {
       const user = await this.userRepository.findOne({
         where: { id },

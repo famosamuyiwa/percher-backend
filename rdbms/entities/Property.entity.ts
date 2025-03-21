@@ -48,7 +48,7 @@ export class Property extends BaseEntity {
   @Column()
   header: string;
 
-  @Column('simple-array')
+  @Column('simple-array', { nullable: true })
   gallery?: string[];
 
   @Column({
@@ -57,10 +57,10 @@ export class Property extends BaseEntity {
   })
   chargeType: ChargeType;
 
-  @Column('simple-array')
+  @Column('simple-array', { nullable: true })
   checkInPeriods?: string[];
 
-  @Column()
+  @Column({ nullable: true })
   checkOutPeriod?: string;
 
   @Column({ default: true })

@@ -14,7 +14,7 @@ export class UserService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async getUserByUserId(id: string) {
+  async getUserByUserId(id: number) {
     try {
       const user = await this.userRepository.findOne({
         where: { id },
@@ -35,7 +35,7 @@ export class UserService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: number, updateUserDto: UpdateUserDto) {
     try {
       const user = await this.userRepository.preload({
         id,
@@ -61,7 +61,7 @@ export class UserService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: number) {
     try {
       await this.userRepository.delete({ id });
 
