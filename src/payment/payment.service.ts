@@ -105,31 +105,9 @@ export class PaymentService {
     }
   }
 
-  private async verifySignature(input: Request) {
-    try {
-      console.log(input.headers);
-      const signature = input.headers['x-paystack-signature'];
-
-      const hash = crypto
-        .createHmac('sha512', this.PAYSTACK_SECRET_KEY)
-        .update(JSON.stringify(input.body))
-        .digest('hex');
-
-      return hash === signature;
-    } catch (err) {
-      handleError(err);
-    }
-  }
-
   async verifyWebhook(input: Request) {
     try {
       console.log('webhook input: ', input);
-      const isSignatureValid = await this.verifySignature(input);
-
-      if (!isSignatureValid) {
-        console.log('Signature is not valid');
-        return;
-      }
 
       const event = input.body;
 

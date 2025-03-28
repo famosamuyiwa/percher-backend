@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -18,6 +18,7 @@ import { BookingModule } from './booking/booking.module';
 import { Invoice } from 'rdbms/entities/Invoice.entity';
 import { PaymentModule } from './payment/payment.module';
 import { Payment } from 'rdbms/entities/Payment.entity';
+import { IpWhitelistMiddleware } from './middleware';
 
 @Module({
   imports: [
@@ -70,4 +71,8 @@ import { Payment } from 'rdbms/entities/Payment.entity';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(IpWhitelistMiddleware).forRoutes('/payment/webhook');
+  }
+}
