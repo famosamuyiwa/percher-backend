@@ -1,9 +1,16 @@
-import { Entity, Column, ManyToOne, OneToMany, Index } from 'typeorm';
+import { Entity, Column, ManyToOne, OneToMany, Index, OneToOne } from 'typeorm';
 import { User } from './User.entity';
 import { Booking } from './Booking.entity';
 import { BaseEntity } from './Base.entity';
 import { Review } from './Review.entity';
-import { ChargeType, Facility, PerchTypes } from 'enums';
+import {
+  Category,
+  ChargeType,
+  Facility,
+  PerchTypes,
+  RegistrationStatus,
+} from 'enums';
+import { Invoice } from './Invoice.entity';
 
 @Entity('properties')
 export class Property extends BaseEntity {
@@ -63,8 +70,12 @@ export class Property extends BaseEntity {
   @Column({ nullable: true })
   checkOutPeriod?: string;
 
-  @Column({ default: true })
-  availability: boolean;
+  @Column({
+    default: RegistrationStatus.IN_REVIEW,
+    type: 'enum',
+    enum: RegistrationStatus,
+  })
+  status: RegistrationStatus;
 
   @Column('simple-array')
   proofOfIdentity: string[];
@@ -74,6 +85,17 @@ export class Property extends BaseEntity {
 
   @Column()
   termsAndConditions: boolean;
+
+  @Column({ nullable: true })
+  rating: number;
+
+  @Column({
+    nullable: true,
+    type: 'enum',
+    enum: Category,
+  })
+  @Index()
+  category?: Category | null;
 
   @ManyToOne(() => User, (user) => user.properties)
   @Index() // Searching properties by host (owner)

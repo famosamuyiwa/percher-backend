@@ -23,7 +23,7 @@ import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { v4 as uuidv4 } from 'uuid';
-import { ResponseStatus } from 'enums';
+import { ResponseStatus, defaultAvatar } from 'enums';
 
 @Injectable()
 export class AuthService {
@@ -78,6 +78,7 @@ export class AuthService {
       const myReferralCode = generateReferralCode(name);
       const newUser = this.userRepository.create({
         name,
+        avatar: defaultAvatar,
         password: hashedPassword,
         email,
         referralCode: myReferralCode,
@@ -141,6 +142,7 @@ export class AuthService {
           name,
           email,
           referralCode: myReferralCode,
+          avatar: defaultAvatar,
         });
         await this.userRepository.save(user);
       }
@@ -306,13 +308,10 @@ export class AuthService {
         where: { email },
       });
 
-      if (!user)
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-
       const payload: ApiResponse = {
-        code: HttpStatus.OK,
+        code: user ? HttpStatus.OK : HttpStatus.NOT_FOUND,
         status: ResponseStatus.SUCCESS,
-        message: 'User with email already exists',
+        message: user ? 'User with email already exists' : 'User not found',
         data: null,
       };
 

@@ -1,0 +1,124 @@
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto';
+import { handleError } from 'utils/helper-methods';
+import { ResponseStatus, UserType } from 'enums';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ApiResponse, Filter } from 'interfaces';
+import { Booking } from 'rdbms/entities/Booking.entity';
+
+@Injectable()
+export class BookingService {
+  constructor(
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+  ) {}
+
+  async create(createBookingDto: CreateBookingDto, userId) {
+    try {
+      const model = this.bookingRepository.create({
+        ...createBookingDto,
+        guest: userId,
+        host: createBookingDto.hostId,
+        property: createBookingDto.propertyId,
+        invoice: createBookingDto.invoice,
+      });
+
+      const booking = await this.bookingRepository.save(model);
+
+      const payload: ApiResponse<Booking> = {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Booking created successfully',
+        data: booking,
+      };
+      return payload;
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async findAll(filter: Filter, userId, cursor?: number) {
+    const { limit, from, bookingStatus } = filter;
+    try {
+      const queryBuilder = this.bookingRepository
+        .createQueryBuilder('booking')
+        .innerJoinAndSelect('booking.property', 'property')
+        .innerJoinAndSelect('booking.invoice', 'invoice')
+        .orderBy('booking.id', 'DESC')
+        .take(limit);
+
+      if (bookingStatus) {
+        queryBuilder.andWhere('booking.status = :bookingStatus', {
+          bookingStatus,
+        });
+      }
+
+      if (from === UserType.HOST) {
+        queryBuilder
+          .innerJoinAndSelect('booking.host', 'host')
+          .andWhere('host.id = :userId', { userId })
+          .innerJoinAndSelect('booking.guest', 'guest');
+      }
+
+      if (from === UserType.GUEST) {
+        queryBuilder
+          .innerJoinAndSelect('booking.guest', 'guest')
+          .andWhere('guest.id = :userId', { userId });
+      }
+
+      // Apply cursor condition if provided
+      if (cursor) {
+        queryBuilder.andWhere('booking.id < :cursor', { cursor });
+      }
+
+      const bookings = await queryBuilder.getMany();
+
+      console.log('bookings: ', bookings);
+
+      // Get the next cursor (last record's ID)
+      const nextCursor = bookings.length
+        ? bookings[bookings.length - 1].id
+        : null;
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Bookings fetch successful',
+        data: bookings,
+        nextCursor, // Return nextCursor for the next batch
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async findOneById(id: number) {
+    try {
+      const booking = await this.bookingRepository.findOne({
+        where: {
+          id,
+        },
+        relations: ['host', 'guest', 'property', 'invoice'],
+      });
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Booking fetch successful',
+        data: booking,
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  update(id: number, updateBookingDto: UpdateBookingDto) {
+    return `This action updates a #${id} booking`;
+  }
+
+  remove(id: number) {
+    return `This action removes a #${id} booking`;
+  }
+}

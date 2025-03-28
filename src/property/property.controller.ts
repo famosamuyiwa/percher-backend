@@ -14,6 +14,7 @@ import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { JwtAuthGuard } from 'guards/jwt-auth.guard';
+import { Category, PerchTypes, UserType } from 'enums';
 
 @UseGuards(JwtAuthGuard)
 @Controller('property')
@@ -27,13 +28,29 @@ export class PropertyController {
   }
 
   @Get()
-  findAll(@Query('limit') limit: number, @Query('cursor') cursor: number) {
-    return this.propertyService.findAll(cursor, limit);
+  findAll(
+    @Query('location') location: string,
+    @Query('type') type: PerchTypes,
+    @Query('limit') limit: number = 10,
+    @Query('cursor') cursor: number,
+    @Query('category') category: Category,
+    @Query('from') from: UserType,
+    @Request() req,
+  ) {
+    const filter = {
+      location,
+      type,
+      limit,
+      category,
+      from,
+    };
+    const loggedInUserId = req.userId;
+    return this.propertyService.findAll(filter, loggedInUserId, cursor);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.propertyService.findOne(+id);
+  findOne(@Param('id') id: number) {
+    return this.propertyService.findOne(id);
   }
 
   @Patch(':id')

@@ -7,7 +7,6 @@ import { AuthModule } from './auth/auth.module';
 import { User } from 'rdbms/entities/User.entity';
 import { Property } from 'rdbms/entities/Property.entity';
 import { Review } from 'rdbms/entities/Review.entity';
-import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { Wallet } from 'rdbms/entities/Wallet.entity';
 import { Booking } from 'rdbms/entities/Booking.entity';
 import { UserModule } from './user/user.module';
@@ -15,6 +14,10 @@ import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { PropertyModule } from './property/property.module';
+import { BookingModule } from './booking/booking.module';
+import { Invoice } from 'rdbms/entities/Invoice.entity';
+import { PaymentModule } from './payment/payment.module';
+import { Payment } from 'rdbms/entities/Payment.entity';
 
 @Module({
   imports: [
@@ -47,11 +50,12 @@ import { PropertyModule } from './property/property.module';
           User,
           Property,
           Review,
-          Transaction,
+          Payment,
           Wallet,
           Booking,
           OtpLog,
           RefreshToken,
+          Invoice,
         ],
         migrations: ['dist/migrations/*.js'], // Use compiled migrations
         synchronize: true, // Ensure this is FALSE when using migrations
@@ -60,6 +64,8 @@ import { PropertyModule } from './property/property.module';
     AuthModule,
     UserModule,
     PropertyModule,
+    BookingModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

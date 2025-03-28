@@ -7,27 +7,36 @@ import {
 } from 'typeorm';
 import { Wallet } from './Wallet.entity';
 import { BaseEntity } from './Base.entity';
+import { Invoice } from './Invoice.entity';
+import { PaymentStatus, TransactionType } from 'enums';
 
-@Entity('transactions')
-export class Transaction extends BaseEntity {
-  @ManyToOne(() => Wallet, (wallet) => wallet.transactions)
+@Entity('payments')
+export class Payment extends BaseEntity {
+  @ManyToOne(() => Wallet, (wallet) => wallet.payments)
   @Index() // Wallet transactions should be quickly retrievable
   wallet: Wallet;
 
   @Column('decimal')
   amount: number;
 
+  @Column()
+  email: string;
+
   @Column({
     type: 'enum',
-    enum: ['deposit', 'withdrawal', 'booking_payment', 'refund'],
+    enum: TransactionType,
+    default: TransactionType.OTHER,
   })
-  type: string;
+  type: TransactionType;
 
-  @Column({ type: 'enum', enum: ['pending', 'completed', 'failed'] })
+  @Column({ type: 'enum', enum: PaymentStatus })
   @Index() // Checking transaction status frequently
-  status: string;
+  status: PaymentStatus;
 
   @Column()
   @Index({ unique: true }) // Reference ID should be unique
   reference: string;
+
+  @ManyToOne(() => Invoice, (invoice) => invoice.payments)
+  invoice: Invoice;
 }

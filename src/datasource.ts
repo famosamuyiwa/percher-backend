@@ -6,9 +6,10 @@ import { Property } from '../rdbms/entities/Property.entity';
 import { Review } from '../rdbms/entities/Review.entity';
 import { Wallet } from '../rdbms/entities/Wallet.entity';
 import { Booking } from '../rdbms/entities/Booking.entity';
-import { Transaction } from '../rdbms/entities/Transaction.entity';
 import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
+import { Invoice } from 'rdbms/entities/Invoice.entity';
+import { Payment } from 'rdbms/entities/Payment.entity';
 
 const configService = new ConfigService();
 
@@ -23,11 +24,12 @@ export const AppDataSource = new DataSource({
     User,
     Property,
     Review,
-    Transaction,
+    Payment,
     Wallet,
     Booking,
     OtpLog,
     RefreshToken,
+    Invoice,
   ],
   migrations: ['dist/migrations/*.ts'], // Use compiled migrations
   synchronize: false, // Ensure this is FALSE when using migrations. Set to true only for development

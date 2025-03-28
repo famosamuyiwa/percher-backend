@@ -1,4 +1,10 @@
-import { LoginProvider } from 'enums';
+import {
+  BookingStatus,
+  Category,
+  LoginProvider,
+  PerchTypes,
+  UserType,
+} from 'enums';
 
 export interface ApiResponse<T = any> {
   code: number;
@@ -31,4 +37,13 @@ export interface PerchRegistrationFormData {
   facilities: string[];
   checkInTimes: string[];
   checkOutTime: string;
+}
+
+export interface Filter {
+  location?: string;
+  type?: PerchTypes;
+  limit?: number;
+  category?: Category;
+  from?: UserType;
+  bookingStatus?: BookingStatus;
 }

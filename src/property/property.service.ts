@@ -5,8 +5,8 @@ import { handleError } from 'utils/helper-methods';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Property } from 'rdbms/entities/Property.entity';
 import { Repository } from 'typeorm';
-import { ApiResponse } from 'interfaces';
-import { ResponseStatus } from 'enums';
+import { ApiResponse, Filter } from 'interfaces';
+import { Category, ResponseStatus, UserType } from 'enums';
 
 @Injectable()
 export class PropertyService {
@@ -23,6 +23,8 @@ export class PropertyService {
         type: createPropertyDto.propertyType,
         bed: createPropertyDto.beds,
         bathroom: createPropertyDto.bathrooms,
+        checkInPeriods: createPropertyDto.checkInTimes,
+        checkOutPeriod: createPropertyDto.checkOutTime,
         termsAndConditions: createPropertyDto.txc,
         host: loggedInUserId,
       });
@@ -41,16 +43,32 @@ export class PropertyService {
     }
   }
 
-  async findAll(cursor?: number, limit: number = 10) {
+  async findAll(filter: Filter, userId: number, cursor?: number) {
+    const { limit, category, type, location, from } = filter;
     try {
       const queryBuilder = this.propertyRepository
         .createQueryBuilder('property')
         .orderBy('property.id', 'DESC')
         .take(limit);
 
+      if (category) {
+        queryBuilder.andWhere('property.category = :category', { category });
+      }
+
+      //Apply user's owned properties if provided
+      if (from === UserType.HOST) {
+        queryBuilder
+          .innerJoin('property.host', 'host')
+          .andWhere('host.id = :userId', { userId });
+      } else {
+        queryBuilder
+          .innerJoin('property.host', 'host')
+          .andWhere('host.id != :userId', { userId });
+      }
+
       // Apply cursor condition if provided
       if (cursor) {
-        queryBuilder.where('property.id < :cursor', { cursor });
+        queryBuilder.andWhere('property.id < :cursor', { cursor });
       }
 
       const properties = await queryBuilder.getMany();
@@ -72,8 +90,24 @@ export class PropertyService {
     }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} property`;
+  async findOne(id: number) {
+    try {
+      const property = await this.propertyRepository.findOne({
+        where: {
+          id,
+        },
+        relations: ['host'],
+      });
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Property fetch successful',
+        data: property,
+      };
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   update(id: number, updatePropertyDto: UpdatePropertyDto) {
@@ -82,5 +116,27 @@ export class PropertyService {
 
   remove(id: number) {
     return `This action removes a #${id} property`;
+  }
+
+  async assignCategory(propertyId: string, category: Category) {
+    await this.propertyRepository
+      .createQueryBuilder()
+      .update(Property)
+      .set({ category }) // Assign category by ID
+      .where('id = :propertyId', { propertyId })
+      .execute();
+
+    return { message: 'Category assigned successfully' };
+  }
+
+  async removeCategory(propertyId: string) {
+    await this.propertyRepository
+      .createQueryBuilder()
+      .update(Property)
+      .set({ category: null }) // Remove category reference
+      .where('id = :propertyId', { propertyId })
+      .execute();
+
+    return { message: 'Category removed successfully' };
   }
 }
