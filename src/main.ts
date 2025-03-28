@@ -9,7 +9,7 @@ async function bootstrap() {
   app.enableCors({
     origin: '*', // Allow all origins (change this in production)
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type, Authorization',
+    allowedHeaders: 'Content-Type, Authorization, x-paystack-signature',
   });
 
   // Enable Global ValidationPipe (Move before app.listen)
