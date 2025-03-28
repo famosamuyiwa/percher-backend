@@ -41,7 +41,7 @@ export class PaymentService {
     >('post', 'transaction/initialize', {
       ...input,
       amount: input.amount * 100,
-      callback_url: 'http://localhost:3001/webhook',
+      callback_url: 'http://localhost:3000/webhook',
     });
 
     return {
