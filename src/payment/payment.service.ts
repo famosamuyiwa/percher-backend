@@ -41,7 +41,7 @@ export class PaymentService {
     >('post', 'transaction/initialize', {
       ...input,
       amount: input.amount * 100,
-      callback_url: 'http://localhost:3000/webhook',
+      callback_url: 'http://localhost:3001/webhook',
     });
 
     return {
@@ -97,7 +97,7 @@ export class PaymentService {
   }
 
   async verifyWebhook(input: Request) {
-    console.log(input);
+    console.log('webhook input: ', input);
     const isSignatureValid = await this.verifySignature(input);
 
     if (!isSignatureValid) {
