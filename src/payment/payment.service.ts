@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   HttpException,
+  HttpStatus,
   Injectable,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -18,105 +19,133 @@ import {
 } from './dto/payment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Payment } from 'rdbms/entities/Payment.entity';
-import { PaymentStatus } from 'enums';
+import { PaymentStatus, ResponseStatus } from 'enums';
+import { getEnvVariable, handleError } from 'utils/helper-methods';
 
 @Injectable()
 export class PaymentService {
-  private readonly PAYSTACK_SECRET_KEY: string =
-    process.env.PAYSTACK_SECRET_KEY ??
-    (() => {
-      throw new Error(
-        'PAYSTACK_SECRET_KEY is not set in environment variables',
-      );
-    })();
+  private readonly PAYSTACK_SECRET_KEY: string = getEnvVariable(
+    'PAYSTACK_SECRET_KEY',
+  );
+  private readonly PAYSTACK_WEBHOOK_CALLBACK_URL: string = getEnvVariable(
+    'PAYSTACK_WEBHOOK_CALLBACK_URL',
+  );
+  private readonly PAYSTACK_API_BASE_URL: string = getEnvVariable(
+    'PAYSTACK_API_BASE_URL',
+  );
+
   constructor(
     private readonly httpService: HttpService,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
   ) {}
   async initPayment(input: PaymentInitDTO) {
-    const response = await this.paystackApiAxiosClient<
-      IPaymentInitResponse,
-      PaystackInit
-    >('post', 'transaction/initialize', {
-      ...input,
-      amount: input.amount * 100,
-      callback_url: 'http://localhost:3001/webhook',
-    });
+    try {
+      const response = await this.paystackApiAxiosClient<
+        IPaymentInitResponse,
+        PaystackInit
+      >('post', 'transaction/initialize', {
+        ...input,
+        amount: input.amount * 100,
+        callback_url: this.PAYSTACK_WEBHOOK_CALLBACK_URL,
+      });
 
-    return {
-      message: 'Payment initialized successfully',
-      url: response.data.authorization_url,
-    };
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Payment initialized successfully',
+        data: response.data.authorization_url,
+      };
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   async verifyPayment(reference: string) {
-    const existingRef = await this.paymentRepository.findOne({
-      where: { reference },
-    });
+    try {
+      const existingRef = await this.paymentRepository.findOne({
+        where: { reference },
+      });
 
-    if (existingRef) {
+      if (existingRef) {
+        return {
+          code: HttpStatus.OK,
+          status: ResponseStatus.SUCCESS,
+          message: 'Payment already verified',
+          data: existingRef,
+        };
+      }
+
+      const response = await this.paystackApiAxiosClient<
+        IPaymentVerifyResponse,
+        null
+      >('get', `transaction/verify/${reference}`);
+
+      if (response.data.status !== 'success') {
+        throw new UnprocessableEntityException(response.message);
+      }
+
+      const payment = this.paymentRepository.create({
+        amount: response.data.amount / 100,
+        email: response.data.customer.email,
+        reference: response.data.reference,
+        status: response.data.status as PaymentStatus,
+      });
+
+      const data = await this.paymentRepository.save(payment);
+
       return {
-        message: 'Payment already verified',
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Payment verified and persisted successfully',
+        data,
       };
+    } catch (err) {
+      handleError(err);
     }
-
-    const response = await this.paystackApiAxiosClient<
-      IPaymentVerifyResponse,
-      null
-    >('get', `transaction/verify/${reference}`);
-
-    if (response.data.status !== 'success') {
-      throw new UnprocessableEntityException(response.message);
-    }
-
-    const payment = this.paymentRepository.create({
-      amount: response.data.amount / 100,
-      email: response.data.customer.email,
-      reference: response.data.reference,
-      status: response.data.status as PaymentStatus,
-    });
-
-    await this.paymentRepository.save(payment);
-
-    return {
-      message: 'Payment verified successfully',
-    };
   }
 
   private async verifySignature(input: Request) {
-    console.log(input.headers);
-    const signature = input.headers['x-paystack-signature'];
+    try {
+      console.log(input.headers);
+      const signature = input.headers['x-paystack-signature'];
 
-    const hash = crypto
-      .createHmac('sha512', this.PAYSTACK_SECRET_KEY)
-      .update(JSON.stringify(input.body))
-      .digest('hex');
+      const hash = crypto
+        .createHmac('sha512', this.PAYSTACK_SECRET_KEY)
+        .update(JSON.stringify(input.body))
+        .digest('hex');
 
-    return hash === signature;
+      return hash === signature;
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   async verifyWebhook(input: Request) {
-    console.log('webhook input: ', input);
-    const isSignatureValid = await this.verifySignature(input);
+    try {
+      console.log('webhook input: ', input);
+      const isSignatureValid = await this.verifySignature(input);
 
-    if (!isSignatureValid) {
-      console.log('Signature is not valid');
-      return;
+      if (!isSignatureValid) {
+        console.log('Signature is not valid');
+        return;
+      }
+
+      const event = input.body;
+
+      console.log('first event', event);
+
+      if (event.event === 'charge.success') {
+        console.log('Charge Success');
+        await this.verifyPayment(event.data.reference);
+      }
+
+      return {
+        message: 'Webhook verified successfully',
+      };
+    } catch (err) {
+      handleError(err);
     }
-
-    const event = input.body;
-
-    console.log('first event', event);
-
-    if (event.event === 'charge.success') {
-      console.log('Charge Success');
-      await this.verifyPayment(event.data.reference);
-    }
-
-    return {
-      message: 'Webhook verified successfully',
-    };
   }
 
   async paystackApiAxiosClient<ResponseT, RequestT>(
@@ -125,7 +154,7 @@ export class PaymentService {
     payload?: RequestT,
   ): Promise<ResponseT> {
     const CONFIG = {
-      baseURL: 'https://api.paystack.co',
+      baseURL: this.PAYSTACK_API_BASE_URL,
       headers: {
         Authorization: `Bearer ${this.PAYSTACK_SECRET_KEY}`,
         'Content-Type': 'application/json',
@@ -165,6 +194,16 @@ export class PaymentService {
   }
 
   async getPayments() {
-    return await this.paymentRepository.find();
+    try {
+      const payments = await this.paymentRepository.find();
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Payments retrieved successfully',
+        data: payments,
+      };
+    } catch (err) {
+      handleError(err);
+    }
   }
 }
