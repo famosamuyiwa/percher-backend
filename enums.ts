@@ -69,7 +69,8 @@ export enum TransactionType {
   DEPOSIT = 'Deposit',
   WITHDRAWAL = 'Withdrawal',
   BOOKING = 'Booking',
-  REFUND = 'Refund',
+  REFUND = 'Booking Refund',
+  CAUTION_FEE_CASHBACK = 'Caution Fee Cashback',
   OTHER = 'Other',
 }
 

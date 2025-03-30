@@ -447,16 +447,23 @@ export class PaymentService {
     amount: number,
     walletId: number,
     paymentId: number,
+    transactionId?: number,
+    status?: TransactionStatus,
   ): Promise<IPersist<{ amount: number; mode: TransactionMode } | null>> {
     try {
       const model = this.transactionRepository.create({
         type: TransactionType.BOOKING,
         mode: TransactionMode.DEBIT,
-        status: TransactionStatus.PROCESSED,
+        status: TransactionStatus.PROCESSED, // awaiting review
         amount,
         wallet: { id: walletId },
         payment: { id: paymentId },
       });
+
+      if (transactionId && status) {
+        model.id = transactionId;
+        model.status = status;
+      }
 
       const transaction = await this.transactionRepository.save(model);
 
@@ -474,6 +481,160 @@ export class PaymentService {
         msg: err.message,
         payload: null,
       };
+    }
+  }
+
+  async handleBookingApproval(bookingId: number) {
+    try {
+      const booking = await this.bookingRepository
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.guest', 'guest')
+        .leftJoinAndSelect('booking.host', 'host')
+        .leftJoinAndSelect('guest.wallet', 'guestWallet')
+        .leftJoinAndSelect('host.wallet', 'hostWallet')
+        .leftJoinAndSelect('booking.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+
+      if (!booking) {
+        throw new BadRequestException('Booking not found');
+      }
+
+      // Find the guest's debit transaction using QueryBuilder
+      const guestDebitTransaction = await this.transactionRepository
+        .createQueryBuilder('transaction')
+        .leftJoinAndSelect('transaction.payment', 'payment')
+        .leftJoinAndSelect('payment.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.booking', 'booking')
+        .where('booking.id = :bookingId', { bookingId })
+        .andWhere('transaction.type = :type', { type: TransactionType.BOOKING })
+        .andWhere('transaction.mode = :mode', { mode: TransactionMode.DEBIT })
+        .andWhere('transaction.status = :status', {
+          status: TransactionStatus.PROCESSED,
+        })
+        .getOne();
+
+      if (!guestDebitTransaction) {
+        throw new BadRequestException('Guest debit transaction not found');
+      }
+
+      // Update guest's transaction status to completed
+      await this.transactionRepository
+        .createQueryBuilder()
+        .update(Transaction)
+        .set({ status: TransactionStatus.COMPLETED })
+        .where('id = :id', { id: guestDebitTransaction.id })
+        .execute();
+
+      // Create credit transaction for host
+      const hostCreditTransaction = await this.transactionRepository
+        .createQueryBuilder()
+        .insert()
+        .into(Transaction)
+        .values({
+          type: TransactionType.BOOKING,
+          mode: TransactionMode.CREDIT,
+          status: TransactionStatus.COMPLETED,
+          amount: booking.invoice.hostTotal,
+          wallet: { id: booking.host.wallet.id },
+          payment: { id: booking.invoice.payment.id },
+        })
+        .execute();
+
+      // Update host's wallet balance using QueryBuilder
+      await this.updateWalletBalance(
+        booking.host.wallet.id,
+        booking.invoice.hostTotal,
+      );
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Booking approved and transactions processed successfully',
+        data: {
+          guestTransaction: guestDebitTransaction,
+          hostTransaction: hostCreditTransaction,
+        },
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async handleBookingRejection(bookingId: number) {
+    try {
+      const booking = await this.bookingRepository
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.guest', 'guest')
+        .leftJoinAndSelect('guest.wallet', 'guestWallet')
+        .leftJoinAndSelect('booking.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+
+      if (!booking) {
+        throw new BadRequestException('Booking not found');
+      }
+
+      // Find the guest's debit transaction using QueryBuilder
+      const guestDebitTransaction = await this.transactionRepository
+        .createQueryBuilder('transaction')
+        .leftJoinAndSelect('transaction.payment', 'payment')
+        .leftJoinAndSelect('payment.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.booking', 'booking')
+        .where('booking.id = :bookingId', { bookingId })
+        .andWhere('transaction.type = :type', { type: TransactionType.BOOKING })
+        .andWhere('transaction.mode = :mode', { mode: TransactionMode.DEBIT })
+        .andWhere('transaction.status = :status', {
+          status: TransactionStatus.PROCESSED,
+        })
+        .getOne();
+
+      if (!guestDebitTransaction) {
+        throw new BadRequestException('Guest debit transaction not found');
+      }
+
+      // Update guest's transaction status to completed
+      await this.transactionRepository
+        .createQueryBuilder()
+        .update(Transaction)
+        .set({ status: TransactionStatus.COMPLETED })
+        .where('id = :id', { id: guestDebitTransaction.id })
+        .execute();
+
+      // Create refund transaction for guest
+      const guestRefundTransaction = await this.transactionRepository
+        .createQueryBuilder()
+        .insert()
+        .into(Transaction)
+        .values({
+          type: TransactionType.REFUND,
+          mode: TransactionMode.CREDIT,
+          status: TransactionStatus.COMPLETED,
+          amount: booking.invoice.guestTotal,
+          wallet: { id: booking.guest.wallet.id },
+          payment: { id: booking.invoice.payment.id },
+        })
+        .execute();
+
+      // Update guest's wallet balance with refund using QueryBuilder
+      await this.updateWalletBalance(
+        booking.guest.wallet.id,
+        booking.invoice.guestTotal,
+      );
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Booking rejected and refund processed successfully',
+        data: {
+          debitTransaction: guestDebitTransaction,
+          refundTransaction: guestRefundTransaction,
+        },
+      };
+    } catch (err) {
+      handleError(err);
     }
   }
 }

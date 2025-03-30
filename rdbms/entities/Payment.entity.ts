@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, Index, OneToMany } from 'typeorm';
+import { Entity, Column, ManyToOne, Index, OneToMany, OneToOne } from 'typeorm';
 import { Wallet } from './Wallet.entity';
 import { BaseEntity } from './Base.entity';
 import { Invoice } from './Invoice.entity';
@@ -39,7 +39,7 @@ export class Payment extends BaseEntity {
   @Index({ unique: true }) // Reference ID should be unique
   reference: string;
 
-  @ManyToOne(() => Invoice, (invoice) => invoice.payments)
+  @OneToOne(() => Invoice, (invoice) => invoice.payment)
   invoice: Invoice;
 
   @OneToMany(() => Transaction, (transaction) => transaction.payment)

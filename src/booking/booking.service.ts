@@ -24,7 +24,6 @@ export class BookingService {
 
   async create(createBookingDto: CreateBookingDto, userId) {
     try {
-      console.log('createBookingDto', createBookingDto.invoice.payments);
       const model = this.bookingRepository.create({
         ...createBookingDto,
         guest: userId,
@@ -171,6 +170,11 @@ export class BookingService {
       });
 
       if (action === ReviewAction.APPROVE) {
+        await this.paymentService.handleBookingApproval(id);
+      }
+
+      if (action === ReviewAction.REJECT) {
+        await this.paymentService.handleBookingRejection(id);
       }
 
       const payload: ApiResponse = {

@@ -42,8 +42,9 @@ export class Invoice extends BaseEntity {
   @OneToOne(() => Booking, (booking) => booking.invoice)
   booking: Booking;
 
-  @OneToMany(() => Payment, (payment) => payment.invoice, {
+  @OneToOne(() => Payment, (payment) => payment.invoice, {
     cascade: true,
   })
-  payments: Payment[];
+  @JoinColumn()
+  payment: Payment;
 }
