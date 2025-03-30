@@ -12,16 +12,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
+import { PaymentService } from 'src/payment/payment.service';
 
 @Injectable()
 export class BookingService {
   constructor(
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
+    private readonly paymentService: PaymentService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto, userId) {
     try {
+      console.log('createBookingDto', createBookingDto.invoice.payments);
       const model = this.bookingRepository.create({
         ...createBookingDto,
         guest: userId,
@@ -154,12 +157,6 @@ export class BookingService {
           HttpStatus.BAD_REQUEST,
         );
 
-      console.log('bookingId: ', booking?.id);
-      console.log('hostId: ', booking?.host.id);
-      console.log('userId: ', userId);
-      console.log('hostId: ', typeof booking?.host.id);
-      console.log('userId: ', typeof userId);
-
       if (booking?.host.id !== userId) {
         throw new ForbiddenException(
           'You do not have permission to review this perch',
@@ -172,6 +169,9 @@ export class BookingService {
             ? BookingStatus.UPCOMING
             : BookingStatus.REJECTED,
       });
+
+      if (action === ReviewAction.APPROVE) {
+      }
 
       const payload: ApiResponse = {
         code: HttpStatus.OK,

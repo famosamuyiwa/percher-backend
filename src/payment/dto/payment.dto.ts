@@ -1,5 +1,5 @@
-import { IsEmail, IsNumber } from 'class-validator';
-import { PaymentType } from 'enums';
+import { IsEmail, IsEnum, IsNumber } from 'class-validator';
+import { PaymentType, TransactionType } from 'enums';
 
 export class PaymentInitDTO {
   @IsNumber()
@@ -43,4 +43,7 @@ export interface IPaymentVerifyResponse {
 export class CreatePaymentDTO {
   @IsNumber()
   amount: number;
+
+  @IsEnum(TransactionType)
+  transactionType: TransactionType;
 }

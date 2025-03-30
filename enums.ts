@@ -78,6 +78,13 @@ export enum TransactionMode {
   CREDIT = 'Credit',
 }
 
+export enum TransactionStatus {
+  PENDING = 'Pending',
+  PROCESSED = 'Processed',
+  COMPLETED = 'Completed',
+  FAILED = 'Failed',
+}
+
 export enum PaymentType {
   CHARGE = 'Charge',
   DRAFT = 'Draft',

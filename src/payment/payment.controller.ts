@@ -53,7 +53,6 @@ export class PaymentController {
     @Request() req,
   ) {
     const loggedInUserId = req.userId;
-    console.log('loggedInUserId', loggedInUserId);
     return this.paymentService.createPayment(reference, body, loggedInUserId);
   }
 

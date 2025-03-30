@@ -7,7 +7,7 @@ import { Transaction } from './Transaction.entity';
 
 @Entity('payments')
 export class Payment extends BaseEntity {
-  @ManyToOne(() => Wallet, (wallet) => wallet.payments, { cascade: true })
+  @ManyToOne(() => Wallet, (wallet) => wallet.payments)
   @Index()
   wallet: Wallet;
 

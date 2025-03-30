@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, Index } from 'typeorm';
 import { Payment } from './Payment.entity';
 import { Wallet } from './Wallet.entity';
-import { TransactionMode, TransactionType } from 'enums';
+import { TransactionMode, TransactionStatus, TransactionType } from 'enums';
 import { BaseEntity } from './Base.entity';
 
 @Entity('transactions')
@@ -31,6 +31,13 @@ export class Transaction extends BaseEntity {
   })
   @Index()
   mode: TransactionMode | null;
+
+  @Column({
+    type: 'enum',
+    enum: TransactionStatus,
+    nullable: true,
+  })
+  status: TransactionStatus;
 
   @Column({ nullable: true })
   description: string;
