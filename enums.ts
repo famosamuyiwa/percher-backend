@@ -62,12 +62,7 @@ export enum BookingStatus {
   COMPLETED = 'Completed',
   REJECTED = 'Rejected',
   CANCELLED = 'Cancelled',
-}
-
-export enum TransactionStatus {
-  PENDING = 'Pending',
-  COMPLETED = 'Completed',
-  FAILED = 'Failed',
+  DRAFT = 'Draft',
 }
 
 export enum TransactionType {
@@ -78,6 +73,22 @@ export enum TransactionType {
   OTHER = 'Other',
 }
 
+export enum TransactionMode {
+  DEBIT = 'Debit',
+  CREDIT = 'Credit',
+}
+
+export enum PaymentType {
+  CHARGE = 'Charge',
+  DRAFT = 'Draft',
+}
+
 export enum PaymentStatus {
   SUCCESS = 'success',
+  PENDING = 'pending',
+}
+
+export enum ReviewAction {
+  APPROVE = 'Approve',
+  REJECT = 'Reject',
 }

@@ -1,4 +1,12 @@
-import { Entity, Column, OneToMany, ManyToOne, Index, OneToOne } from 'typeorm';
+import {
+  Entity,
+  Column,
+  OneToMany,
+  ManyToOne,
+  Index,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Booking } from './Booking.entity';
 import { Property } from './Property.entity';
@@ -47,5 +55,6 @@ export class User extends BaseEntity {
   hostBookings: Booking[];
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)
+  @JoinColumn()
   wallet: Wallet;
 }

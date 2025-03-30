@@ -46,10 +46,10 @@ export class Property extends BaseEntity {
   @Index() // Searching properties by location is common
   location: string;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   cautionFee: number;
 
   @Column()

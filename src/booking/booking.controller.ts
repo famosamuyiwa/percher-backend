@@ -14,7 +14,7 @@ import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { JwtAuthGuard } from 'guards/jwt-auth.guard';
-import { BookingStatus, Category, UserType } from 'enums';
+import { BookingStatus, Category, ReviewAction, UserType } from 'enums';
 
 @UseGuards(JwtAuthGuard)
 @Controller('booking')
@@ -43,6 +43,16 @@ export class BookingController {
       bookingStatus,
     };
     return this.bookingService.findAll(filter, loggedInUserId, cursor);
+  }
+
+  @Post('review/:id')
+  reviewAction(
+    @Param('id') id: number,
+    @Query('action') action: ReviewAction,
+    @Request() req,
+  ) {
+    const loggedInUserId = req.userId;
+    return this.bookingService.review(id, action, loggedInUserId);
   }
 
   @Get(':id')

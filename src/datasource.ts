@@ -10,6 +10,7 @@ import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { Invoice } from 'rdbms/entities/Invoice.entity';
 import { Payment } from 'rdbms/entities/Payment.entity';
+import { Transaction } from 'rdbms/entities/Transaction.entity';
 
 const configService = new ConfigService();
 
@@ -30,6 +31,7 @@ export const AppDataSource = new DataSource({
     OtpLog,
     RefreshToken,
     Invoice,
+    Transaction,
   ],
   migrations: ['dist/migrations/*.ts'], // Use compiled migrations
   synchronize: false, // Ensure this is FALSE when using migrations. Set to true only for development

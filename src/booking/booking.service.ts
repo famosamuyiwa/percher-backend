@@ -1,8 +1,13 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { handleError } from 'utils/helper-methods';
-import { ResponseStatus, UserType } from 'enums';
+import { BookingStatus, ResponseStatus, ReviewAction, UserType } from 'enums';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
@@ -46,6 +51,7 @@ export class BookingService {
         .createQueryBuilder('booking')
         .innerJoinAndSelect('booking.property', 'property')
         .innerJoinAndSelect('booking.invoice', 'invoice')
+        .andWhere('booking.status != :status', { status: BookingStatus.DRAFT })
         .orderBy('booking.id', 'DESC')
         .take(limit);
 
@@ -74,8 +80,6 @@ export class BookingService {
       }
 
       const bookings = await queryBuilder.getMany();
-
-      console.log('bookings: ', bookings);
 
       // Get the next cursor (last record's ID)
       const nextCursor = bookings.length
@@ -118,7 +122,66 @@ export class BookingService {
     return `This action updates a #${id} booking`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} booking`;
+  async remove(id: number) {
+    try {
+      await this.bookingRepository.delete({ id });
+
+      const payload: ApiResponse = {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Booking deleted successfully',
+        data: null,
+      };
+      return payload;
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async review(id: number, action: ReviewAction, userId: number) {
+    try {
+      if (!action)
+        throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
+
+      const booking = await this.bookingRepository.findOne({
+        where: { id },
+        relations: ['host'],
+      });
+
+      if (!booking)
+        throw new HttpException(
+          'Booking does not exist',
+          HttpStatus.BAD_REQUEST,
+        );
+
+      console.log('bookingId: ', booking?.id);
+      console.log('hostId: ', booking?.host.id);
+      console.log('userId: ', userId);
+      console.log('hostId: ', typeof booking?.host.id);
+      console.log('userId: ', typeof userId);
+
+      if (booking?.host.id !== userId) {
+        throw new ForbiddenException(
+          'You do not have permission to review this perch',
+        );
+      }
+
+      await this.bookingRepository.update(id, {
+        status:
+          action === ReviewAction.APPROVE
+            ? BookingStatus.UPCOMING
+            : BookingStatus.REJECTED,
+      });
+
+      const payload: ApiResponse = {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Booking reviewed successfully',
+        data: null,
+      };
+      return payload;
+    } catch (err) {
+      handleError(err);
+    }
   }
 }

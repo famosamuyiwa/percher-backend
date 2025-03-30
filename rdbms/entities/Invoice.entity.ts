@@ -24,24 +24,26 @@ export class Invoice extends BaseEntity {
   @Column('decimal')
   subTotal: number;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   hostServiceFee: number;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   guestServiceFee: number;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   cautionFee: number;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   guestTotal: number;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   hostTotal: number;
 
   @OneToOne(() => Booking, (booking) => booking.invoice)
   booking: Booking;
 
-  @OneToMany(() => Payment, (payment) => payment.invoice)
+  @OneToMany(() => Payment, (payment) => payment.invoice, {
+    cascade: true,
+  })
   payments: Payment[];
 }

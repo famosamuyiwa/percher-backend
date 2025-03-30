@@ -20,7 +20,7 @@ export class JwtAuthGuard implements CanActivate {
     const jwt = authHeader.replace('Bearer ', ''); // Extract JWT
     try {
       const payload = this.jwtService.verify(jwt);
-      request.userId = payload.userId; // Attach user to request
+      request.userId = Number(payload.userId); // Attach user to request
       request.jwt = jwt;
       return true;
     } catch (error) {

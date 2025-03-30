@@ -10,8 +10,8 @@ import { catchError, lastValueFrom, map } from 'rxjs';
 import { AxiosError } from 'axios';
 import { Repository } from 'typeorm';
 import { Request } from 'express';
-import * as crypto from 'crypto';
 import {
+  CreatePaymentDTO,
   IPaymentInitResponse,
   IPaymentVerifyResponse,
   PaymentInitDTO,
@@ -19,8 +19,20 @@ import {
 } from './dto/payment.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Payment } from 'rdbms/entities/Payment.entity';
-import { PaymentStatus, ResponseStatus } from 'enums';
+import {
+  BookingStatus,
+  PaymentStatus,
+  PaymentType,
+  ResponseStatus,
+  TransactionMode,
+  TransactionType,
+} from 'enums';
 import { getEnvVariable, handleError } from 'utils/helper-methods';
+import { Booking } from 'rdbms/entities/Booking.entity';
+import { Filter, IPersist } from 'interfaces';
+import { User } from 'rdbms/entities/User.entity';
+import { Wallet } from 'rdbms/entities/Wallet.entity';
+import { Transaction } from 'rdbms/entities/Transaction.entity';
 
 @Injectable()
 export class PaymentService {
@@ -38,6 +50,14 @@ export class PaymentService {
     private readonly httpService: HttpService,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepository: Repository<Transaction>,
   ) {}
   async initPayment(input: PaymentInitDTO) {
     try {
@@ -65,9 +85,12 @@ export class PaymentService {
     try {
       const existingRef = await this.paymentRepository.findOne({
         where: { reference },
+        relations: ['invoice', 'invoice.booking', 'wallet'],
       });
 
-      if (existingRef) {
+      console.log('existingRef', existingRef);
+
+      if (existingRef && existingRef.status !== PaymentStatus.PENDING) {
         return {
           code: HttpStatus.OK,
           status: ResponseStatus.SUCCESS,
@@ -85,14 +108,52 @@ export class PaymentService {
         throw new UnprocessableEntityException(response.message);
       }
 
-      const payment = this.paymentRepository.create({
-        amount: response.data.amount / 100,
+      let payment: Payment | undefined = undefined;
+      const amount = response.data.amount / 100; // paystack deals in milliseconds, convert
+      const model = {
+        amount,
         email: response.data.customer.email,
         reference: response.data.reference,
-        status: response.data.status as PaymentStatus,
-      });
+        status: PaymentStatus.SUCCESS,
+        type: PaymentType.CHARGE,
+      };
+
+      if (existingRef) {
+        payment = await this.paymentRepository.preload({
+          id: existingRef.id,
+          ...model,
+        });
+      } else {
+        payment = this.paymentRepository.create(model);
+      }
+
+      if (existingRef?.invoice?.booking?.id) {
+        await this.bookingRepository.update(existingRef?.invoice?.booking?.id, {
+          paymentStatus: PaymentStatus.SUCCESS,
+          status: BookingStatus.PENDING,
+        });
+      }
+
+      if (!payment) {
+        throw new BadRequestException(
+          `Something went wrong while persisting payment record with transactionRef: ${reference}`,
+        );
+      }
 
       const data = await this.paymentRepository.save(payment);
+
+      if (!existingRef?.wallet?.id) {
+        throw new BadRequestException('Wallet not found');
+      }
+
+      const walletData = await this.updateWalletBalance(
+        existingRef?.wallet?.id,
+        amount,
+      );
+
+      if (!walletData.isPersist) {
+        throw new BadRequestException(walletData.msg);
+      }
 
       return {
         code: HttpStatus.OK,
@@ -182,6 +243,194 @@ export class PaymentService {
       };
     } catch (err) {
       handleError(err);
+    }
+  }
+
+  async findAll(filter: Filter, userId: number, cursor?: number) {
+    const { limit } = filter;
+
+    try {
+      const queryBuilder = this.paymentRepository
+        .createQueryBuilder('payment')
+        .andWhere('payment.status != :paymentStatus', {
+          paymentStatus: PaymentStatus.PENDING,
+        })
+        .orderBy('payment.id', 'DESC')
+        .take(limit);
+
+      // Apply cursor condition if provided
+      if (cursor) {
+        queryBuilder.andWhere('payment.id < :cursor', { cursor });
+      }
+
+      const payments = await queryBuilder.getMany();
+
+      // Get the next cursor (last record's ID)
+      const nextCursor = payments.length
+        ? payments[payments.length - 1].id
+        : null;
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Payments retrieved successfully',
+        data: payments,
+        nextCursor, // Return nextCursor for the next batch
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async createPayment(
+    reference: string,
+    createPaymentDTO: CreatePaymentDTO,
+    userId: number,
+  ) {
+    const { amount } = createPaymentDTO;
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['wallet'],
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    console.log('user', user);
+
+    const payment = this.paymentRepository.create({
+      reference,
+      type: PaymentType.DRAFT,
+      wallet: user.wallet,
+      amount,
+    });
+
+    await this.paymentRepository.save(payment);
+
+    return {
+      code: HttpStatus.OK,
+      status: ResponseStatus.SUCCESS,
+      message: 'Draft payment created successfully',
+      data: payment,
+    };
+  }
+  catch(err) {
+    handleError(err);
+  }
+
+  async updateWalletBalance(
+    walletId: number,
+    amount: number,
+  ): Promise<IPersist<Wallet | null>> {
+    try {
+      const wallet = await this.walletRepository.findOne({
+        where: { id: walletId },
+      });
+
+      if (!wallet) {
+        return {
+          isPersist: false,
+          msg: 'Wallet not found',
+          payload: null,
+        };
+      }
+
+      const updatedWallet = await this.walletRepository.update(walletId, {
+        balance: Number(wallet.balance) + Number(amount),
+      });
+
+      if (!updatedWallet) {
+        return {
+          isPersist: false,
+          msg: 'Wallet update failed',
+          payload: null,
+        };
+      }
+
+      const persistedWallet = await this.walletRepository.findOne({
+        where: { id: walletId },
+      });
+
+      return {
+        isPersist: true,
+        msg: 'Wallet updated successfully',
+        payload: persistedWallet,
+      };
+    } catch (err) {
+      return {
+        isPersist: false,
+        msg: err.message,
+        payload: null,
+      };
+    }
+  }
+
+  async persistTransaction(
+    type: TransactionType,
+    amount: number,
+    walletId: number,
+    paymentId: number,
+  ): Promise<IPersist<Transaction | null>> {
+    let persist;
+    try {
+      switch (type) {
+        case TransactionType.DEPOSIT:
+          persist = await this.depositTransaction(amount, walletId, paymentId);
+          break;
+        case TransactionType.WITHDRAWAL:
+          break;
+        default:
+          throw new BadRequestException('Invalid transaction type');
+      }
+
+      if (!persist.isPersist) {
+        throw new BadRequestException(
+          'Transaction not persisted: ',
+          persist.msg,
+        );
+      }
+
+      console.log('persist', persist);
+
+      persist = await this.updateWalletBalance(walletId, persist.payload);
+
+      return persist;
+    } catch (err) {
+      return {
+        isPersist: false,
+        msg: err.message,
+        payload: null,
+      };
+    }
+  }
+
+  async depositTransaction(
+    amount: number,
+    walletId: number,
+    paymentId: number,
+  ): Promise<IPersist<number | null>> {
+    try {
+      const model = this.transactionRepository.create({
+        type: TransactionType.DEPOSIT,
+        mode: TransactionMode.CREDIT,
+        amount,
+        wallet: { id: walletId },
+        payment: { id: paymentId },
+      });
+
+      const transaction = await this.transactionRepository.save(model);
+
+      return {
+        isPersist: true,
+        msg: 'Transaction persisted successfully',
+        payload: Number(transaction.amount),
+      };
+    } catch (err) {
+      return {
+        isPersist: true,
+        msg: err.message,
+        payload: null,
+      };
     }
   }
 }

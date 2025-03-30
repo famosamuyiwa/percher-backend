@@ -1,4 +1,5 @@
 import { IsEmail, IsNumber } from 'class-validator';
+import { PaymentType } from 'enums';
 
 export class PaymentInitDTO {
   @IsNumber()
@@ -37,4 +38,9 @@ export interface IPaymentVerifyResponse {
       email: string;
     };
   };
+}
+
+export class CreatePaymentDTO {
+  @IsNumber()
+  amount: number;
 }

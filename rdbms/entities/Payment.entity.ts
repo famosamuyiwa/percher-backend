@@ -1,36 +1,38 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  Index,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, Index, OneToMany } from 'typeorm';
 import { Wallet } from './Wallet.entity';
 import { BaseEntity } from './Base.entity';
 import { Invoice } from './Invoice.entity';
-import { PaymentStatus, TransactionType } from 'enums';
+import { PaymentStatus, PaymentType, TransactionType } from 'enums';
+import { Transaction } from './Transaction.entity';
 
 @Entity('payments')
 export class Payment extends BaseEntity {
-  @ManyToOne(() => Wallet, (wallet) => wallet.payments)
-  @Index() // Wallet transactions should be quickly retrievable
+  @ManyToOne(() => Wallet, (wallet) => wallet.payments, { cascade: true })
+  @Index()
   wallet: Wallet;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   amount: number;
 
-  @Column()
+  @Column({ nullable: true })
   email: string;
+
+  @Column({
+    type: 'enum',
+    enum: PaymentType,
+    default: PaymentType.DRAFT,
+  })
+  type: PaymentType;
 
   @Column({
     type: 'enum',
     enum: TransactionType,
     default: TransactionType.OTHER,
   })
-  type: TransactionType;
+  transactionType: TransactionType;
 
-  @Column({ type: 'enum', enum: PaymentStatus })
-  @Index() // Checking transaction status frequently
+  @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
+  @Index() // Checking payment status frequently
   status: PaymentStatus;
 
   @Column()
@@ -39,4 +41,7 @@ export class Payment extends BaseEntity {
 
   @ManyToOne(() => Invoice, (invoice) => invoice.payments)
   invoice: Invoice;
+
+  @OneToMany(() => Transaction, (transaction) => transaction.payment)
+  transactions: Transaction[];
 }

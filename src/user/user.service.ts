@@ -37,7 +37,7 @@ export class UserService {
 
   async update(id: number, updateUserDto: UpdateUserDto) {
     try {
-      const user = await this.userRepository.preload({
+      let user = await this.userRepository.preload({
         id,
         ...updateUserDto,
       });
@@ -46,13 +46,13 @@ export class UserService {
         throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
       }
 
-      await this.userRepository.save(user);
+      user = await this.userRepository.save(user);
 
       const payload: ApiResponse = {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
         message: 'User updated successfully',
-        data: { user },
+        data: user,
       };
 
       return payload;

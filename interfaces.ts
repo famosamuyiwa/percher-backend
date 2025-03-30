@@ -47,3 +47,9 @@ export interface Filter {
   from?: UserType;
   bookingStatus?: BookingStatus;
 }
+
+export interface IPersist<T> {
+  isPersist: boolean;
+  msg: string;
+  payload: T;
+}

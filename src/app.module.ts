@@ -19,6 +19,8 @@ import { Invoice } from 'rdbms/entities/Invoice.entity';
 import { PaymentModule } from './payment/payment.module';
 import { Payment } from 'rdbms/entities/Payment.entity';
 import { IpWhitelistMiddleware } from './middleware';
+import { Transaction } from 'rdbms/entities/Transaction.entity';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -57,6 +59,7 @@ import { IpWhitelistMiddleware } from './middleware';
           OtpLog,
           RefreshToken,
           Invoice,
+          Transaction,
         ],
         migrations: ['dist/migrations/*.js'], // Use compiled migrations
         synchronize: true, // Ensure this is FALSE when using migrations
@@ -67,12 +70,14 @@ import { IpWhitelistMiddleware } from './middleware';
     PropertyModule,
     BookingModule,
     PaymentModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
+    //protect webhook endpoint from unauthorized IPs
     consumer.apply(IpWhitelistMiddleware).forRoutes('/payment/webhook');
   }
 }

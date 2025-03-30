@@ -24,6 +24,7 @@ import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { ResponseStatus, defaultAvatar } from 'enums';
+import { Wallet } from 'rdbms/entities/Wallet.entity';
 
 @Injectable()
 export class AuthService {
@@ -36,6 +37,8 @@ export class AuthService {
     private readonly otpLogRepository: Repository<OtpLog>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>,
     private jwtService: JwtService,
   ) {}
 
@@ -89,6 +92,12 @@ export class AuthService {
       }
 
       const user = await this.userRepository.save(newUser);
+
+      const wallet = this.walletRepository.create({
+        user,
+      });
+
+      await this.walletRepository.save(wallet);
 
       return {
         code: HttpStatus.CREATED,
@@ -144,7 +153,13 @@ export class AuthService {
           referralCode: myReferralCode,
           avatar: defaultAvatar,
         });
-        await this.userRepository.save(user);
+        const createdUser = await this.userRepository.save(user);
+
+        const wallet = this.walletRepository.create({
+          user: createdUser,
+        });
+
+        await this.walletRepository.save(wallet);
       }
 
       if (user.password) {
@@ -327,6 +342,7 @@ export class AuthService {
     try {
       const user = await this.userRepository.findOne({
         where: { id },
+        relations: ['wallet'],
       });
 
       if (!user)

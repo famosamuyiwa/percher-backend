@@ -11,7 +11,7 @@ import {
 import { Property } from './Property.entity';
 import { BaseEntity } from './Base.entity';
 import { User } from './User.entity';
-import { BookingStatus, ChargeType } from 'enums';
+import { BookingStatus, ChargeType, PaymentStatus } from 'enums';
 import { Invoice } from './Invoice.entity';
 
 @Entity('bookings')
@@ -38,17 +38,14 @@ export class Booking extends BaseEntity {
   @Column({
     type: 'enum',
     enum: BookingStatus,
-    default: BookingStatus.PENDING,
+    default: BookingStatus.DRAFT,
   })
   @Index() // Frequent queries for approval workflow
   status: BookingStatus;
 
-  @Column({
-    type: 'enum',
-    enum: ['pending', 'paid', 'refunded'],
-    default: 'pending',
-  })
-  paymentStatus: string;
+  @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
+  @Index() // Checking transaction status frequently
+  paymentStatus: PaymentStatus;
 
   @ManyToOne(() => User, (user) => user.guestBookings)
   @Index() // Frequently queried by guest ID
@@ -62,7 +59,9 @@ export class Booking extends BaseEntity {
   @Index() // Booking queries often involve properties
   property: Property;
 
-  @OneToOne(() => Invoice, (invoice) => invoice.booking, { cascade: true })
+  @OneToOne(() => Invoice, (invoice) => invoice.booking, {
+    cascade: true,
+  })
   @JoinColumn()
   invoice: Invoice;
 }
