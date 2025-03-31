@@ -2,16 +2,26 @@ export enum Facility {
   LAUNDRY = 'Laundry',
   GARAGE = 'Garage',
   GYM = 'Gym',
-  WIFI = 'Wifi',
+  WIFI = 'WiFi',
+  FURNISHED = 'Furnished',
+  PET_FRIENDLY = 'Pet Friendly',
+  ESTATE_SECURITY = 'Estate Security',
+  POOL = 'Pool',
+  ELECTRICITY_24_7 = '24/7 Electricity',
+  CCTV = 'CCTV',
 }
 
 export enum PerchTypes {
+  APARTMENT = 'Apartment', // Serviced or not
   HOUSE = 'House',
-  CONDO = 'Condo',
-  DUPLEX = 'Duplex',
-  STUDIO = 'Studio',
   VILLA = 'Villa',
-  APARTMENT = 'Apartment',
+  MANSION = 'Mansion',
+  PENTHOUSE = 'Penthouse',
+  SELF_CONTAINED = 'Self-Contained',
+  BOYS_QUARTERS = "Boys' Quarters",
+  OFFICE_SPACE = 'Office Space',
+  WAREHOUSE = 'Warehouse',
+  EVENT_CENTER = 'Event Center',
   OTHERS = 'Others',
 }
 

@@ -35,6 +35,8 @@ export class PropertyController {
     @Query('cursor') cursor: number,
     @Query('category') category: Category,
     @Query('from') from: UserType,
+    @Query('perchType') perchType: PerchTypes,
+    @Query('searchTerm') searchTerm: string,
     @Request() req,
   ) {
     const filter = {
@@ -43,7 +45,11 @@ export class PropertyController {
       limit,
       category,
       from,
+      perchType:
+        perchType !== ('All' as unknown as PerchTypes) ? perchType : undefined,
+      searchTerm: searchTerm,
     };
+    console.log('filter', filter);
     const loggedInUserId = req.userId;
     return this.propertyService.findAll(filter, loggedInUserId, cursor);
   }

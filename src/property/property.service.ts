@@ -44,7 +44,8 @@ export class PropertyService {
   }
 
   async findAll(filter: Filter, userId: number, cursor?: number) {
-    const { limit, category, type, location, from } = filter;
+    const { limit, category, type, location, from, perchType, searchTerm } =
+      filter;
     try {
       const queryBuilder = this.propertyRepository
         .createQueryBuilder('property')
@@ -53,6 +54,19 @@ export class PropertyService {
 
       if (category) {
         queryBuilder.andWhere('property.category = :category', { category });
+      }
+
+      if (perchType) {
+        queryBuilder.andWhere('property.type = :perchType', { perchType });
+      }
+
+      if (searchTerm) {
+        queryBuilder.andWhere(
+          '(property.name ILIKE :searchTerm OR property.location ILIKE :searchTerm)',
+          {
+            searchTerm: `%${searchTerm}%`,
+          },
+        );
       }
 
       //Apply user's owned properties if provided

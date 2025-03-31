@@ -46,6 +46,8 @@ export interface Filter {
   category?: Category;
   from?: UserType;
   bookingStatus?: BookingStatus;
+  perchType?: PerchTypes;
+  searchTerm?: string;
 }
 
 export interface IPersist<T> {

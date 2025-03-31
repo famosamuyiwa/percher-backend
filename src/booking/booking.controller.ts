@@ -42,6 +42,7 @@ export class BookingController {
       from,
       bookingStatus,
     };
+    console.log('filter', filter);
     return this.bookingService.findAll(filter, loggedInUserId, cursor);
   }
 
