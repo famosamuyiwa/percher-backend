@@ -2,6 +2,8 @@ import {
   BookingStatus,
   Category,
   LoginProvider,
+  NotificationStatus,
+  NotificationType,
   PerchTypes,
   UserType,
 } from 'enums';
@@ -54,4 +56,13 @@ export interface IPersist<T> {
   isPersist: boolean;
   msg: string;
   payload: T;
+}
+
+export interface INotification<T> {
+  user: number;
+  type: NotificationType;
+  status: NotificationStatus;
+  title: string;
+  message: string;
+  data?: T;
 }

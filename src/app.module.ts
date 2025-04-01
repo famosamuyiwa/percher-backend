@@ -21,6 +21,8 @@ import { Payment } from 'rdbms/entities/Payment.entity';
 import { IpWhitelistMiddleware } from './middleware';
 import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { WalletModule } from './wallet/wallet.module';
+import { NotificationModule } from './notification/notification.module';
+import { Notification } from 'rdbms/entities/Notification.entity';
 
 @Module({
   imports: [
@@ -60,6 +62,7 @@ import { WalletModule } from './wallet/wallet.module';
           RefreshToken,
           Invoice,
           Transaction,
+          Notification,
         ],
         migrations: ['dist/migrations/*.js'], // Use compiled migrations
         synchronize: true, // Ensure this is FALSE when using migrations
@@ -71,6 +74,7 @@ import { WalletModule } from './wallet/wallet.module';
     BookingModule,
     PaymentModule,
     WalletModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

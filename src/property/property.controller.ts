@@ -49,7 +49,6 @@ export class PropertyController {
         perchType !== ('All' as unknown as PerchTypes) ? perchType : undefined,
       searchTerm: searchTerm,
     };
-    console.log('filter', filter);
     const loggedInUserId = req.userId;
     return this.propertyService.findAll(filter, loggedInUserId, cursor);
   }

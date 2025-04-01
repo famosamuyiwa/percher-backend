@@ -38,7 +38,6 @@ export const to2DecimalPoints = (value: number) => {
 };
 
 export const handleError = (err) => {
-  console.error(err);
   if (err instanceof HttpException) {
     throw err;
   } else {

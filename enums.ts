@@ -110,3 +110,18 @@ export enum ReviewAction {
   APPROVE = 'Approve',
   REJECT = 'Reject',
 }
+
+export enum NotificationType {
+  BOOKING_REQUEST = 'Booking Request',
+  BOOKING_APPROVED = 'Booking Approved',
+  BOOKING_REJECTED = 'Booking Rejected',
+  PAYMENT_SUCCESS = 'Payment Success',
+  PAYMENT_FAILED = 'Payment Failed',
+  REFUND = 'Refund',
+  SYSTEM = 'System',
+}
+
+export enum NotificationStatus {
+  UNREAD = 'Unread',
+  READ = 'Read',
+}

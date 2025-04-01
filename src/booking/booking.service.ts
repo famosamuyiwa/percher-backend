@@ -7,12 +7,20 @@ import {
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { handleError } from 'utils/helper-methods';
-import { BookingStatus, ResponseStatus, ReviewAction, UserType } from 'enums';
+import {
+  BookingStatus,
+  NotificationStatus,
+  NotificationType,
+  ResponseStatus,
+  ReviewAction,
+  UserType,
+} from 'enums';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ApiResponse, Filter } from 'interfaces';
+import { ApiResponse, Filter, INotification } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
 import { PaymentService } from 'src/payment/payment.service';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class BookingService {
@@ -20,6 +28,7 @@ export class BookingService {
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
     private readonly paymentService: PaymentService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto, userId) {
@@ -33,6 +42,23 @@ export class BookingService {
       });
 
       const booking = await this.bookingRepository.save(model);
+
+      // Create notification for the host
+      const notification: INotification<any> = {
+        user: createBookingDto.hostId as unknown as number,
+        type: NotificationType.BOOKING_REQUEST,
+        title: 'New Booking Request',
+        message: `You have received a new booking request`,
+        data: {
+          bookingId: booking.id,
+          propertyId: booking.property.id,
+          propertyName: booking.property.name,
+          guestId: userId,
+          amount: booking.invoice.guestTotal,
+        },
+        status: NotificationStatus.UNREAD,
+      };
+      await this.notificationService.createNotification(notification);
 
       const payload: ApiResponse<Booking> = {
         code: HttpStatus.OK,

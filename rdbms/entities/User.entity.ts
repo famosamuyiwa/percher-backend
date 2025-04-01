@@ -11,6 +11,7 @@ import { BaseEntity } from './Base.entity';
 import { Booking } from './Booking.entity';
 import { Property } from './Property.entity';
 import { Wallet } from './Wallet.entity';
+import { Notification } from './Notification.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -57,4 +58,7 @@ export class User extends BaseEntity {
   @OneToOne(() => Wallet, (wallet) => wallet.user)
   @JoinColumn()
   wallet: Wallet;
+
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications: Notification[];
 }
