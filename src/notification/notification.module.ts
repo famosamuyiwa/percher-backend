@@ -1,28 +1,19 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Notification } from 'rdbms/entities/Notification.entity';
 import { User } from 'rdbms/entities/User.entity';
-import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
+import { NotificationService } from './notification.service';
 import { NotificationGateway } from './notification.gateway';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Notification, User]),
-    ConfigModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1h' },
-      }),
-      inject: [ConfigService],
-    }),
+    forwardRef(() => RabbitMQModule),
   ],
   controllers: [NotificationController],
   providers: [NotificationService, NotificationGateway],
-  exports: [NotificationService, NotificationGateway],
+  exports: [NotificationService],
 })
 export class NotificationModule {}

@@ -1,4 +1,10 @@
-import { forwardRef, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import {
+  forwardRef,
+  HttpStatus,
+  Inject,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from 'rdbms/entities/Notification.entity';
@@ -7,9 +13,14 @@ import { NotificationStatus, NotificationType, ResponseStatus } from 'enums';
 import { handleError } from 'utils/helper-methods';
 import { INotification } from 'interfaces';
 import { NotificationGateway } from './notification.gateway';
+import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
+import { getRabbitMQConfig } from '../config/rabbitmq.config';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class NotificationService {
+export class NotificationService implements OnModuleInit {
+  private rabbitConfig: ReturnType<typeof getRabbitMQConfig>;
+
   constructor(
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
@@ -17,9 +28,21 @@ export class NotificationService {
     private readonly userRepository: Repository<User>,
     @Inject(forwardRef(() => NotificationGateway))
     private readonly notificationGateway: NotificationGateway,
-  ) {}
+    private readonly rabbitMQService: RabbitMQService,
+    private readonly configService: ConfigService,
+  ) {
+    this.rabbitConfig = getRabbitMQConfig(configService);
+  }
 
-  async createNotification(notification: INotification<any>) {
+  async onModuleInit() {
+    // Start consuming notification messages
+    await this.rabbitMQService.consumeMessages(
+      this.rabbitConfig.queues.notification,
+      this.processNotification.bind(this),
+    );
+  }
+
+  private async processNotification(notification: INotification<any>) {
     const { user: userId, type, title, message, data } = notification;
     try {
       const user = await this.userRepository.findOne({
@@ -29,7 +52,7 @@ export class NotificationService {
         throw new Error('User not found');
       }
 
-      const notification = this.notificationRepository.create({
+      const newNotification = this.notificationRepository.create({
         user,
         type,
         title,
@@ -39,22 +62,41 @@ export class NotificationService {
       });
 
       const savedNotification =
-        await this.notificationRepository.save(notification);
+        await this.notificationRepository.save(newNotification);
 
       // Emit notification through WebSocket
       const wsNotification: INotification<any> = {
         ...savedNotification,
         user: userId,
       };
-      await this.notificationGateway.sendNotificationToUser(
-        userId,
-        wsNotification,
-      );
+
+      try {
+        await this.notificationGateway.sendNotificationToUser(
+          userId,
+          wsNotification,
+        );
+      } catch (wsError) {
+        // Log the WebSocket error but don't fail the notification creation
+        console.log(
+          `WebSocket notification failed for user ${userId}:`,
+          wsError.message,
+        );
+      }
 
       return savedNotification;
     } catch (err) {
       handleError(err);
     }
+  }
+
+  async createNotification(notification: INotification<any>) {
+    // Publish notification to RabbitMQ
+    await this.rabbitMQService.publishMessage(
+      this.rabbitConfig.exchanges.notification,
+      this.rabbitConfig.routingKeys.notification,
+      notification,
+    );
+    return notification;
   }
 
   async createNotificationForUsers(
@@ -67,26 +109,19 @@ export class NotificationService {
     try {
       const notifications = await Promise.all(
         userIds.map(async (userId) => {
-          const user = await this.userRepository.findOne({
-            where: { id: userId },
-          });
-          if (!user) return null;
-
-          const notification = this.notificationRepository.create({
-            user,
+          const notification: INotification<any> = {
+            user: userId,
             type,
             title,
             message,
             data,
             status: NotificationStatus.UNREAD,
-          });
-
-          return this.notificationRepository.save(notification);
+          };
+          return this.createNotification(notification);
         }),
       );
 
-      // Filter out null notifications
-      return notifications.filter((n): n is Notification => n !== null);
+      return notifications;
     } catch (error) {
       handleError(error);
     }
