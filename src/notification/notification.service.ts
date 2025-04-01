@@ -20,6 +20,7 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class NotificationService implements OnModuleInit {
   private rabbitConfig: ReturnType<typeof getRabbitMQConfig>;
+  private readonly BATCH_SIZE = 100; // Process notifications in batches of 100
 
   constructor(
     @InjectRepository(Notification)
@@ -107,21 +108,31 @@ export class NotificationService implements OnModuleInit {
     data?: Record<string, any>,
   ) {
     try {
-      const notifications = await Promise.all(
-        userIds.map(async (userId) => {
-          const notification: INotification<any> = {
-            user: userId,
-            type,
-            title,
-            message,
-            data,
-            status: NotificationStatus.UNREAD,
-          };
-          return this.createNotification(notification);
-        }),
-      );
+      // Process users in batches
+      const batches: number[][] = [];
+      for (let i = 0; i < userIds.length; i += this.BATCH_SIZE) {
+        batches.push(userIds.slice(i, i + this.BATCH_SIZE));
+      }
 
-      return notifications;
+      const results: INotification<any>[] = [];
+      for (const batch of batches) {
+        const batchNotifications = await Promise.all(
+          batch.map(async (userId) => {
+            const notification: INotification<any> = {
+              user: userId,
+              type,
+              title,
+              message,
+              data,
+              status: NotificationStatus.UNREAD,
+            };
+            return this.createNotification(notification);
+          }),
+        );
+        results.push(...batchNotifications);
+      }
+
+      return results;
     } catch (error) {
       handleError(error);
     }
