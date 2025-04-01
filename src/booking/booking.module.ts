@@ -7,6 +7,8 @@ import { Invoice } from 'rdbms/entities/Invoice.entity';
 
 import { PaymentModule } from 'src/payment/payment.module';
 import { NotificationModule } from 'src/notification/notification.module';
+import { BookingStatusQueueService } from './booking-status-queue.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, Invoice]),
@@ -14,6 +16,6 @@ import { NotificationModule } from 'src/notification/notification.module';
     NotificationModule,
   ],
   controllers: [BookingController],
-  providers: [BookingService],
+  providers: [BookingService, BookingStatusQueueService],
 })
 export class BookingModule {}

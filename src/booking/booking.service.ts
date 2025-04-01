@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
 } from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -11,6 +12,7 @@ import {
   BookingStatus,
   NotificationStatus,
   NotificationType,
+  QUEUE_NAME,
   ResponseStatus,
   ReviewAction,
   UserType,
@@ -21,6 +23,8 @@ import { ApiResponse, Filter, INotification } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
 import { PaymentService } from 'src/payment/payment.service';
 import { NotificationService } from 'src/notification/notification.service';
+import { BookingStatusQueueService } from './booking-status-queue.service';
+import { RabbitMQSingleton } from 'src/rabbitmq/rabbitmq.singleton';
 
 @Injectable()
 export class BookingService {
@@ -29,6 +33,9 @@ export class BookingService {
     private readonly bookingRepository: Repository<Booking>,
     private readonly paymentService: PaymentService,
     private readonly notificationService: NotificationService,
+    private readonly bookingStatusQueueService: BookingStatusQueueService,
+    @Inject('RABBITMQ_SINGLETON')
+    private readonly rabbitMQ: RabbitMQSingleton,
   ) {}
 
   async create(createBookingDto: CreateBookingDto, userId) {
@@ -171,13 +178,18 @@ export class BookingService {
         );
       }
 
-      await this.bookingRepository.update(id, {
+      const message = {
+        type: 'UPDATE_STATUS',
+        bookingId: id,
         status:
           action === ReviewAction.APPROVE
             ? BookingStatus.UPCOMING
             : BookingStatus.REJECTED,
-      });
+      };
+      // Queue the status update
+      await this.rabbitMQ.pushToQueue(QUEUE_NAME.BOOKING_STATUS, message);
 
+      // Queue payment operations
       if (action === ReviewAction.APPROVE) {
         await this.paymentService.handleBookingApproval(id);
       }
@@ -186,13 +198,13 @@ export class BookingService {
         await this.paymentService.handleBookingRejection(id);
       }
 
-      const payload: ApiResponse = {
+      // Return immediate response
+      return {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
-        message: 'Booking reviewed successfully',
+        message: 'Booking review process queued',
         data: null,
       };
-      return payload;
     } catch (err) {
       handleError(err);
     }

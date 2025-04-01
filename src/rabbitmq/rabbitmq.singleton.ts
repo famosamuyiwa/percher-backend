@@ -207,7 +207,7 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async publishMessage(
+  async pushToQueue(
     queueName: string,
     message: any,
     retryCount: number = 0,
@@ -289,7 +289,7 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
                 content.retryCount <
                 (options.maxRetries ?? this.DEFAULT_OPTIONS.maxRetries)
               ) {
-                await this.publishMessage(
+                await this.pushToQueue(
                   queueName,
                   content,
                   content.retryCount + 1,

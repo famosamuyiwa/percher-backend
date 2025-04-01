@@ -128,6 +128,8 @@ export enum NotificationStatus {
 
 export enum QUEUE_NAME {
   NOTIFICATION = 'notification',
+  PAYMENT = 'payment',
+  BOOKING_STATUS = 'booking_status',
 }
 
 export const RABBITMQ_SINGLETON = 'RABBITMQ_SINGLETON';
