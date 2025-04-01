@@ -32,46 +32,76 @@ export class NotificationGateway
     private readonly configService: ConfigService,
   ) {}
 
-  async handleConnection(client: Socket) {
+  private async authenticateSocket(client: Socket): Promise<number | null> {
     try {
       const token = client.handshake.auth.token;
-
       if (!token) {
-        console.log('No token provided, disconnecting client');
+        console.log('No token provided');
+        return null;
+      }
+
+      const jwt = token.replace('Bearer ', '');
+      const payload = this.jwtService.verify(jwt, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
+
+      return Number(payload.userId);
+    } catch (error) {
+      console.error('JWT verification failed:', error);
+      return null;
+    }
+  }
+
+  async handleConnection(client: Socket) {
+    try {
+      const userId = await this.authenticateSocket(client);
+
+      if (!userId) {
+        console.log('Authentication failed, disconnecting client');
         client.disconnect();
         return;
       }
 
-      // Verify token and get user ID using the same logic as JwtAuthGuard
-      const jwt = token.replace('Bearer ', '');
-      try {
-        const payload = this.jwtService.verify(jwt, {
-          secret: this.configService.get<string>('JWT_SECRET'),
-        });
+      // Store the socket connection
+      this.userSockets.set(userId, client);
 
-        const userId = Number(payload.userId);
+      // Send initial unread count
+      const unreadCount = await this.notificationService.getUnreadCount(userId);
+      client.emit('unreadCount', unreadCount);
 
-        // Store the socket connection
-        this.userSockets.set(userId, client);
+      // Send recent notifications
+      const notifications = await this.notificationService.getUserNotifications(
+        userId,
+        5,
+      );
+      client.emit('recentNotifications', notifications);
 
-        // Send initial unread count
-        const unreadCount =
-          await this.notificationService.getUnreadCount(userId);
-        client.emit('unreadCount', unreadCount);
-
-        // Send recent notifications
-        const notifications =
-          await this.notificationService.getUserNotifications(userId, 5);
-        client.emit('recentNotifications', notifications);
-
-        // Send confirmation to client
-        client.emit('connectionConfirmed', { userId, status: 'connected' });
-      } catch (error) {
-        console.error('JWT verification failed:', error);
-        client.disconnect();
-      }
+      // Send confirmation to client
+      client.emit('connectionConfirmed', { userId, status: 'connected' });
     } catch (error) {
       console.error('Connection error:', error);
+      client.disconnect();
+    }
+  }
+
+  @SubscribeMessage('refreshToken')
+  async handleTokenRefresh(client: Socket) {
+    try {
+      const userId = await this.authenticateSocket(client);
+
+      if (!userId) {
+        console.log('Token refresh failed, disconnecting client');
+        client.disconnect();
+        return;
+      }
+
+      // Update the socket mapping with the new token
+      this.userSockets.set(userId, client);
+
+      // Send confirmation to client
+      client.emit('tokenRefreshConfirmed', { userId, status: 'refreshed' });
+    } catch (error) {
+      console.error('Token refresh error:', error);
       client.disconnect();
     }
   }
