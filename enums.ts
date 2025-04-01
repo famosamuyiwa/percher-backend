@@ -125,3 +125,9 @@ export enum NotificationStatus {
   UNREAD = 'Unread',
   READ = 'Read',
 }
+
+export enum QUEUE_NAME {
+  NOTIFICATION = 'notification',
+}
+
+export const RABBITMQ_SINGLETON = 'RABBITMQ_SINGLETON';

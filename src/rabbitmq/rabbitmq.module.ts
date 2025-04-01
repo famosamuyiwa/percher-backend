@@ -1,18 +1,25 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { RabbitMQService } from './rabbitmq.service';
 import { getRabbitMQConfig } from '../config/rabbitmq.config';
+import { RabbitMQSingleton } from './rabbitmq.singleton';
+import { RABBITMQ_SINGLETON } from 'enums';
 
+@Global()
 @Module({
   imports: [ConfigModule],
   providers: [
-    RabbitMQService,
     {
       provide: 'RABBITMQ_CONFIG',
       useFactory: (configService) => getRabbitMQConfig(configService),
       inject: [ConfigService],
     },
+    {
+      provide: RABBITMQ_SINGLETON,
+      useFactory: (configService) =>
+        RabbitMQSingleton.getInstance(configService),
+      inject: [ConfigService],
+    },
   ],
-  exports: [RabbitMQService],
+  exports: [RABBITMQ_SINGLETON],
 })
 export class RabbitMQModule {}

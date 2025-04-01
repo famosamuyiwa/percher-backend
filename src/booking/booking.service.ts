@@ -43,23 +43,6 @@ export class BookingService {
 
       const booking = await this.bookingRepository.save(model);
 
-      // Create notification for the host
-      const notification: INotification<any> = {
-        user: createBookingDto.hostId as unknown as number,
-        type: NotificationType.BOOKING_REQUEST,
-        title: 'New Booking Request',
-        message: `You have received a new booking request`,
-        data: {
-          bookingId: booking.id,
-          propertyId: booking.property.id,
-          propertyName: booking.property.name,
-          guestId: userId,
-          amount: booking.invoice.guestTotal,
-        },
-        status: NotificationStatus.UNREAD,
-      };
-      await this.notificationService.createNotification(notification);
-
       const payload: ApiResponse<Booking> = {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,

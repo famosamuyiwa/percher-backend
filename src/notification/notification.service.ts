@@ -9,17 +9,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from 'rdbms/entities/Notification.entity';
 import { User } from 'rdbms/entities/User.entity';
-import { NotificationStatus, NotificationType, ResponseStatus } from 'enums';
+import {
+  NotificationStatus,
+  NotificationType,
+  QUEUE_NAME,
+  ResponseStatus,
+} from 'enums';
 import { handleError } from 'utils/helper-methods';
 import { INotification } from 'interfaces';
 import { NotificationGateway } from './notification.gateway';
-import { RabbitMQService } from '../rabbitmq/rabbitmq.service';
-import { getRabbitMQConfig } from '../config/rabbitmq.config';
-import { ConfigService } from '@nestjs/config';
+import { RabbitMQSingleton } from '../rabbitmq/rabbitmq.singleton';
 
 @Injectable()
 export class NotificationService implements OnModuleInit {
-  private rabbitConfig: ReturnType<typeof getRabbitMQConfig>;
+  private readonly QUEUE_NAME = 'notification';
   private readonly BATCH_SIZE = 100; // Process notifications in batches of 100
 
   constructor(
@@ -29,114 +32,102 @@ export class NotificationService implements OnModuleInit {
     private readonly userRepository: Repository<User>,
     @Inject(forwardRef(() => NotificationGateway))
     private readonly notificationGateway: NotificationGateway,
-    private readonly rabbitMQService: RabbitMQService,
-    private readonly configService: ConfigService,
-  ) {
-    this.rabbitConfig = getRabbitMQConfig(configService);
-  }
+    @Inject('RABBITMQ_SINGLETON')
+    private readonly rabbitMQ: RabbitMQSingleton,
+  ) {}
 
   async onModuleInit() {
+    // Register the notification queue
+    await this.rabbitMQ.registerQueue(QUEUE_NAME.NOTIFICATION);
     // Start consuming notification messages
-    await this.rabbitMQService.consumeMessages(
-      this.rabbitConfig.queues.notification,
+    await this.rabbitMQ.consumeMessages(
+      this.QUEUE_NAME,
       this.processNotification.bind(this),
     );
   }
 
-  private async processNotification(notification: INotification<any>) {
-    const { user: userId, type, title, message, data } = notification;
-    try {
-      const user = await this.userRepository.findOne({
-        where: { id: userId },
-      });
-      if (!user) {
-        throw new Error('User not found');
-      }
+  private async processNotification(message: any): Promise<void> {
+    const {
+      notificationId,
+      user,
+      type,
+      title,
+      message: notificationMessage,
+      data,
+      createdAt,
+    } = message;
 
-      const newNotification = this.notificationRepository.create({
+    try {
+      await this.createNotification({
         user,
         type,
         title,
-        message,
+        message: notificationMessage,
         data,
         status: NotificationStatus.UNREAD,
       });
-
-      const savedNotification =
-        await this.notificationRepository.save(newNotification);
-
-      // Emit notification through WebSocket
-      const wsNotification: INotification<any> = {
-        ...savedNotification,
-        user: userId,
-      };
-
-      try {
-        await this.notificationGateway.sendNotificationToUser(
-          userId,
-          wsNotification,
-        );
-      } catch (wsError) {
-        // Log the WebSocket error but don't fail the notification creation
-        console.log(
-          `WebSocket notification failed for user ${userId}:`,
-          wsError.message,
-        );
-      }
-
-      return savedNotification;
-    } catch (err) {
-      handleError(err);
+    } catch (error) {
+      console.error('Error sending WebSocket notification:', error);
+      throw error;
     }
   }
 
-  async createNotification(notification: INotification<any>) {
-    // Publish notification to RabbitMQ
-    await this.rabbitMQService.publishMessage(
-      this.rabbitConfig.exchanges.notification,
-      this.rabbitConfig.routingKeys.notification,
-      notification,
-    );
-    return notification;
-  }
-
-  async createNotificationForUsers(
-    userIds: number[],
-    type: NotificationType,
-    title: string,
-    message: string,
-    data?: Record<string, any>,
-  ) {
+  async createNotification(data: INotification<any>) {
     try {
-      // Process users in batches
-      const batches: number[][] = [];
-      for (let i = 0; i < userIds.length; i += this.BATCH_SIZE) {
-        batches.push(userIds.slice(i, i + this.BATCH_SIZE));
-      }
-
-      const results: INotification<any>[] = [];
-      for (const batch of batches) {
-        const batchNotifications = await Promise.all(
-          batch.map(async (userId) => {
-            const notification: INotification<any> = {
-              user: userId,
-              type,
-              title,
-              message,
-              data,
-              status: NotificationStatus.UNREAD,
-            };
-            return this.createNotification(notification);
-          }),
-        );
-        results.push(...batchNotifications);
-      }
-
-      return results;
+      const notification = this.notificationRepository.create(data);
+      const savedNotification =
+        await this.notificationRepository.save(notification);
+      await this.notificationGateway.sendNotificationToUser(data.user, data);
+      return savedNotification;
     } catch (error) {
       handleError(error);
     }
   }
+
+  //   async createNotificationForUsers(
+  //     userIds: number[],
+  //     type: NotificationType,
+  //     title: string,
+  //     message: string,
+  //     data?: Record<string, any>,
+  //   ) {
+  //     try {
+  //       // Process users in batches
+  //       const batches: number[][] = [];
+  //       for (let i = 0; i < userIds.length; i += this.BATCH_SIZE) {
+  //         batches.push(userIds.slice(i, i + this.BATCH_SIZE));
+  //       }
+
+  //       const results: Notification[] = [];
+  //       for (const batch of batches) {
+  //         const batchNotifications = await Promise.all(
+  //           batch.map(async (userId) => {
+  //             const user = await this.userRepository.findOne({
+  //               where: { id: userId },
+  //             });
+  //             if (!user) {
+  //               throw new Error(`User with ID ${userId} not found`);
+  //             }
+
+  //             const notification = this.notificationRepository.create({
+  //               user,
+  //               type,
+  //               title,
+  //               message,
+  //               data,
+  //               status: NotificationStatus.UNREAD,
+  //             });
+  //             return this.createNotification(notification);
+  //           }),
+  //         );
+  //         results.push(...batchNotifications);
+  //       }
+
+  //       return results;
+  //     } catch (error) {
+  //       handleError(error);
+  //     }
+  //   }
 
   async getUserNotifications(userId: number, limit: number = 20) {
     return this.notificationRepository

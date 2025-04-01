@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Injectable,
   UnprocessableEntityException,
+  Inject,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { catchError, lastValueFrom, map } from 'rxjs';
@@ -23,6 +24,7 @@ import {
   BookingStatus,
   PaymentStatus,
   PaymentType,
+  QUEUE_NAME,
   ResponseStatus,
   TransactionMode,
   TransactionStatus,
@@ -34,6 +36,9 @@ import { Filter, IPersist } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { Wallet } from 'rdbms/entities/Wallet.entity';
 import { Transaction } from 'rdbms/entities/Transaction.entity';
+import { RabbitMQSingleton } from '../rabbitmq/rabbitmq.singleton';
+import { NotificationType, NotificationStatus } from 'enums';
+import { INotification } from 'interfaces';
 
 @Injectable()
 export class PaymentService {
@@ -59,6 +64,8 @@ export class PaymentService {
     private readonly walletRepository: Repository<Wallet>,
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
+    @Inject('RABBITMQ_SINGLETON')
+    private readonly rabbitMQ: RabbitMQSingleton,
   ) {}
   async initPayment(input: PaymentInitDTO) {
     try {
@@ -466,6 +473,18 @@ export class PaymentService {
       }
 
       const transaction = await this.transactionRepository.save(model);
+
+      // Create notification for the host
+      const message: INotification<any> = {
+        user: 1 as unknown as number,
+        type: NotificationType.BOOKING_REQUEST,
+        title: 'New Booking Request',
+        message: `You have received a new booking request`,
+        status: NotificationStatus.UNREAD,
+      };
+
+      // Publish notification to RabbitMQ queue
+      await this.rabbitMQ.publishMessage(QUEUE_NAME.NOTIFICATION, message);
 
       return {
         isPersist: true,

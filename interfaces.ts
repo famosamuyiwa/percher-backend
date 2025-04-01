@@ -59,7 +59,7 @@ export interface IPersist<T> {
 }
 
 export interface INotification<T> {
-  user: number;
+  user: any;
   type: NotificationType;
   status: NotificationStatus;
   title: string;
