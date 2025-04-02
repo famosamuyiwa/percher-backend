@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { Booking } from 'rdbms/entities/Booking.entity';
 import { BookingStatus, NotificationType, NotificationStatus } from 'enums';
-import { NotificationService } from 'src/notification/notification.service';
+import { NotificationService } from 'src/app/notification/notification.service';
 
 @Injectable()
 export class CronService {

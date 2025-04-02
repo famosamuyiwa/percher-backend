@@ -36,7 +36,7 @@ import { Filter, IPersist } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { Wallet } from 'rdbms/entities/Wallet.entity';
 import { Transaction } from 'rdbms/entities/Transaction.entity';
-import { RabbitMQSingleton } from '../rabbitmq/rabbitmq.singleton';
+import { RabbitMQSingleton } from '../../rabbitmq/rabbitmq.singleton';
 import { NotificationType, NotificationStatus } from 'enums';
 import { INotification } from 'interfaces';
 

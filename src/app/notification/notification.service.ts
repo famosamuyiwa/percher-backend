@@ -18,7 +18,7 @@ import {
 import { handleError } from 'utils/helper-methods';
 import { INotification } from 'interfaces';
 import { NotificationGateway } from './notification.gateway';
-import { RabbitMQSingleton } from '../rabbitmq/rabbitmq.singleton';
+import { RabbitMQSingleton } from '../../rabbitmq/rabbitmq.singleton';
 
 @Injectable()
 export class NotificationService implements OnModuleInit {

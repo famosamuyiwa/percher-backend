@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { CronService } from './cron.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from 'rdbms/entities/Booking.entity';
-import { NotificationModule } from 'src/notification/notification.module';
+import { NotificationModule } from 'src/app/notification/notification.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({

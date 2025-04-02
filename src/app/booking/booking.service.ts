@@ -12,8 +12,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
-import { PaymentService } from 'src/payment/payment.service';
-import { NotificationService } from 'src/notification/notification.service';
+import { PaymentService } from 'src/app/payment/payment.service';
+import { NotificationService } from 'src/app/notification/notification.service';
 
 @Injectable()
 export class BookingService {
