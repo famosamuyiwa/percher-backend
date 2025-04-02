@@ -30,7 +30,6 @@ export class PropertyController {
   @Get()
   findAll(
     @Query('location') location: string,
-    @Query('type') type: PerchTypes,
     @Query('limit') limit: number = 10,
     @Query('cursor') cursor: number,
     @Query('category') category: Category,
@@ -41,7 +40,6 @@ export class PropertyController {
   ) {
     const filter = {
       location,
-      type,
       limit,
       category,
       from,

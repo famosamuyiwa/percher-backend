@@ -109,6 +109,7 @@ export enum PaymentStatus {
 export enum ReviewAction {
   APPROVE = 'Approve',
   REJECT = 'Reject',
+  CANCEL = 'Cancel',
 }
 
 export enum NotificationType {

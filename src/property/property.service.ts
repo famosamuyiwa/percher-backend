@@ -44,8 +44,7 @@ export class PropertyService {
   }
 
   async findAll(filter: Filter, userId: number, cursor?: number) {
-    const { limit, category, type, location, from, perchType, searchTerm } =
-      filter;
+    const { limit, category, location, from, perchType, searchTerm } = filter;
     try {
       const queryBuilder = this.propertyRepository
         .createQueryBuilder('property')

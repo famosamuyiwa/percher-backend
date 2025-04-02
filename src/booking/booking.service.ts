@@ -7,17 +7,10 @@ import {
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { handleError } from 'utils/helper-methods';
-import {
-  BookingStatus,
-  NotificationStatus,
-  NotificationType,
-  ResponseStatus,
-  ReviewAction,
-  UserType,
-} from 'enums';
+import { BookingStatus, ResponseStatus, ReviewAction, UserType } from 'enums';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ApiResponse, Filter, INotification } from 'interfaces';
+import { ApiResponse, Filter } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
 import { PaymentService } from 'src/payment/payment.service';
 import { NotificationService } from 'src/notification/notification.service';
@@ -149,14 +142,20 @@ export class BookingService {
     }
   }
 
-  async review(id: number, action: ReviewAction, userId: number) {
+  async review(
+    id: number,
+    action: ReviewAction,
+    userId: number,
+    from: UserType,
+  ) {
     try {
-      if (!action)
+      console.log('reviewing booking', id, action, userId, from);
+      if (!action || !id || !userId || !from)
         throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
 
       const booking = await this.bookingRepository.findOne({
         where: { id },
-        relations: ['host'],
+        relations: ['host', 'guest'],
       });
 
       if (!booking)
@@ -165,17 +164,24 @@ export class BookingService {
           HttpStatus.BAD_REQUEST,
         );
 
-      if (booking?.host.id !== userId) {
-        throw new ForbiddenException(
+      if (from === UserType.HOST && booking?.host.id !== userId) {
+        throw new HttpException(
           'You do not have permission to review this perch',
+          HttpStatus.FORBIDDEN,
         );
       }
 
+      if (from === UserType.GUEST && booking?.guest.id !== userId) {
+        throw new HttpException(
+          'You do not have permission to review this perch',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const status = getStatusFromAction(action);
+
       await this.bookingRepository.update(id, {
-        status:
-          action === ReviewAction.APPROVE
-            ? BookingStatus.UPCOMING
-            : BookingStatus.REJECTED,
+        status,
       });
 
       if (action === ReviewAction.APPROVE) {
@@ -184,6 +190,10 @@ export class BookingService {
 
       if (action === ReviewAction.REJECT) {
         await this.paymentService.handleBookingRejection(id);
+      }
+
+      if (action === ReviewAction.CANCEL) {
+        await this.paymentService.handleBookingCancellation(id);
       }
 
       const payload: ApiResponse = {
@@ -196,5 +206,16 @@ export class BookingService {
     } catch (err) {
       handleError(err);
     }
+  }
+}
+
+function getStatusFromAction(action: ReviewAction) {
+  switch (action) {
+    case ReviewAction.APPROVE:
+      return BookingStatus.UPCOMING;
+    case ReviewAction.REJECT:
+      return BookingStatus.REJECTED;
+    case ReviewAction.CANCEL:
+      return BookingStatus.CANCELLED;
   }
 }
