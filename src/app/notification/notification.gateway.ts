@@ -41,10 +41,8 @@ export class NotificationGateway
       }
 
       const jwt = token.replace('Bearer ', '');
-      const payload = this.jwtService.verify(jwt, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-      });
-
+      const payload = this.jwtService.decode(jwt);
+      console.log('payload', payload);
       return Number(payload.userId);
     } catch (error) {
       console.error('JWT verification failed:', error);
@@ -80,28 +78,6 @@ export class NotificationGateway
       client.emit('connectionConfirmed', { userId, status: 'connected' });
     } catch (error) {
       console.error('Connection error:', error);
-      client.disconnect();
-    }
-  }
-
-  @SubscribeMessage('refreshToken')
-  async handleTokenRefresh(client: Socket) {
-    try {
-      const userId = await this.authenticateSocket(client);
-
-      if (!userId) {
-        console.log('Token refresh failed, disconnecting client');
-        client.disconnect();
-        return;
-      }
-
-      // Update the socket mapping with the new token
-      this.userSockets.set(userId, client);
-
-      // Send confirmation to client
-      client.emit('tokenRefreshConfirmed', { userId, status: 'refreshed' });
-    } catch (error) {
-      console.error('Token refresh error:', error);
       client.disconnect();
     }
   }

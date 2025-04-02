@@ -132,3 +132,11 @@ export enum QUEUE_NAME {
 }
 
 export const RABBITMQ_SINGLETON = 'RABBITMQ_SINGLETON';
+
+export const WEBSOCKET_DISCONNECT_REASON = {
+  AUTHENTICATION_FAILED: 'authentication_failed',
+  CONNECTION_ERROR: 'connection_error',
+  TOKEN_REFRESH_FAILED: 'token_refresh_failed',
+  TOKEN_REFRESH_ERROR: 'token_refresh_error',
+  NORMAL_DISCONNECT: 'normal_disconnect',
+};

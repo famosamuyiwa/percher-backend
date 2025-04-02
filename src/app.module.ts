@@ -23,6 +23,7 @@ import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { WalletModule } from './app/wallet/wallet.module';
 import { NotificationModule } from './app/notification/notification.module';
 import { Notification } from 'rdbms/entities/Notification.entity';
+import { CronModule } from './cron/cron.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { Notification } from 'rdbms/entities/Notification.entity';
     PaymentModule,
     WalletModule,
     NotificationModule,
+    CronModule,
   ],
   controllers: [AppController],
   providers: [AppService],
