@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { handleError } from 'utils/helper-methods';
@@ -6,7 +6,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Property } from 'rdbms/entities/Property.entity';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
-import { Category, ResponseStatus, UserType } from 'enums';
+import {
+  Category,
+  RegistrationStatus,
+  ResponseStatus,
+  ReviewAction,
+  UserType,
+} from 'enums';
 
 @Injectable()
 export class PropertyService {
@@ -73,10 +79,18 @@ export class PropertyService {
         queryBuilder
           .innerJoin('property.host', 'host')
           .andWhere('host.id = :userId', { userId });
-      } else {
+      }
+
+      if (from === UserType.GUEST) {
         queryBuilder
           .innerJoin('property.host', 'host')
           .andWhere('host.id != :userId', { userId });
+      }
+
+      if (from === UserType.ADMIN) {
+        queryBuilder.andWhere('property.status = :status', {
+          status: RegistrationStatus.IN_REVIEW,
+        });
       }
 
       // Apply cursor condition if provided
@@ -123,6 +137,40 @@ export class PropertyService {
     }
   }
 
+  async review(id: number, action: ReviewAction, userId: number) {
+    try {
+      if (!action || !id || !userId)
+        throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
+
+      const property = await this.propertyRepository.findOne({
+        where: { id },
+        relations: ['host'],
+      });
+
+      if (!property)
+        throw new HttpException(
+          'Property does not exist',
+          HttpStatus.BAD_REQUEST,
+        );
+
+      const status = getStatusFromAction(action);
+
+      await this.propertyRepository.update(id, {
+        status,
+      });
+
+      const payload: ApiResponse = {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Property reviewed successfully',
+        data: null,
+      };
+      return payload;
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
   update(id: number, updatePropertyDto: UpdatePropertyDto) {
     return `This action updates a #${id} property`;
   }
@@ -151,5 +199,14 @@ export class PropertyService {
       .execute();
 
     return { message: 'Category removed successfully' };
+  }
+}
+
+function getStatusFromAction(action: ReviewAction) {
+  switch (action) {
+    case ReviewAction.APPROVE:
+      return RegistrationStatus.APPROVED;
+    case ReviewAction.REJECT:
+      return RegistrationStatus.REJECTED;
   }
 }

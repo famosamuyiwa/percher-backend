@@ -66,7 +66,7 @@ import { CronModule } from './cron/cron.module';
           Notification,
         ],
         migrations: ['dist/migrations/*.js'], // Use compiled migrations
-        synchronize: true, // Ensure this is FALSE when using migrations
+        synchronize: false, // Ensure this is FALSE when using migrations
       }),
     }),
     AuthModule,

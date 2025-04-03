@@ -63,6 +63,7 @@ export enum RegistrationStatus {
 export enum UserType {
   HOST = 'Host',
   GUEST = 'Guest',
+  ADMIN = 'Admin',
 }
 
 export enum BookingStatus {
@@ -140,3 +141,8 @@ export const WEBSOCKET_DISCONNECT_REASON = {
   TOKEN_REFRESH_ERROR: 'token_refresh_error',
   NORMAL_DISCONNECT: 'normal_disconnect',
 };
+
+export enum Roles {
+  USER = 'Role_User',
+  ADMIN = 'Role_Admin',
+}

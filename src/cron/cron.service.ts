@@ -21,7 +21,7 @@ export class CronService {
    * and update their status to CURRENT
    * Runs every hour
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_HOUR)
   async checkBookingArrivalDates() {
     this.logger.log('Running booking arrival date check...');
 
@@ -94,14 +94,13 @@ export class CronService {
    * Check for bookings that have ended and update their status to COMPLETED
    * Runs every hour
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_HOUR)
   async checkBookingEndDates() {
     this.logger.log('Running booking end date check...');
 
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
       // Find bookings that ended yesterday and are in CURRENT status
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);

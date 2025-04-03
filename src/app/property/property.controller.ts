@@ -14,7 +14,9 @@ import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { JwtAuthGuard } from 'guards/jwt-auth.guard';
-import { Category, PerchTypes, UserType } from 'enums';
+import { RoleGuard } from 'guards/role.guard';
+import { Role } from 'decorators/role.decorator';
+import { Category, PerchTypes, ReviewAction, Roles, UserType } from 'enums';
 
 @UseGuards(JwtAuthGuard)
 @Controller('property')
@@ -49,6 +51,18 @@ export class PropertyController {
     };
     const loggedInUserId = req.userId;
     return this.propertyService.findAll(filter, loggedInUserId, cursor);
+  }
+
+  @Post('review/:id')
+  @UseGuards(RoleGuard)
+  @Role(Roles.ADMIN)
+  reviewAction(
+    @Param('id') id: number,
+    @Query('action') action: ReviewAction,
+    @Request() req,
+  ) {
+    const loggedInUserId = req.userId;
+    return this.propertyService.review(id, action, loggedInUserId);
   }
 
   @Get(':id')

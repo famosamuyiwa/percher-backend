@@ -42,7 +42,6 @@ export class NotificationGateway
 
       const jwt = token.replace('Bearer ', '');
       const payload = this.jwtService.decode(jwt);
-      console.log('payload', payload);
       return Number(payload.userId);
     } catch (error) {
       console.error('JWT verification failed:', error);
