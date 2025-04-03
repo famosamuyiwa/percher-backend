@@ -40,7 +40,7 @@ import { entities, migrations } from './config/database.config';
         url: configService.get<string>('DATABASE_URL'),
         entities,
         migrations,
-        synchronize: false, // Ensure this is FALSE when using migrations
+        synchronize: true, // Ensure this is FALSE when using migrations
       }),
     }),
     AuthModule,

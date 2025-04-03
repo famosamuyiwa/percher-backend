@@ -41,7 +41,4 @@ export class Transaction extends BaseEntity {
 
   @Column({ nullable: true })
   description: string;
-
-  @Column({ nullable: true })
-  migrationTest: string;
 }

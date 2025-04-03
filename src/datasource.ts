@@ -13,6 +13,6 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'mydatabase',
   entities,
   migrations,
-  synchronize: false,
+  synchronize: true,
   logging: ['error', 'warn', 'migration'], // Helps with debugging migrations
 });
