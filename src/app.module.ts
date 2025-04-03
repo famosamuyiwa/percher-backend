@@ -4,26 +4,16 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './app/auth/auth.module';
-import { User } from 'rdbms/entities/User.entity';
-import { Property } from 'rdbms/entities/Property.entity';
-import { Review } from 'rdbms/entities/Review.entity';
-import { Wallet } from 'rdbms/entities/Wallet.entity';
-import { Booking } from 'rdbms/entities/Booking.entity';
 import { UserModule } from './app/user/user.module';
-import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtModule } from '@nestjs/jwt';
-import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { PropertyModule } from './app/property/property.module';
 import { BookingModule } from './app/booking/booking.module';
-import { Invoice } from 'rdbms/entities/Invoice.entity';
 import { PaymentModule } from './app/payment/payment.module';
-import { Payment } from 'rdbms/entities/Payment.entity';
 import { IpWhitelistMiddleware } from './middleware';
-import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { WalletModule } from './app/wallet/wallet.module';
 import { NotificationModule } from './app/notification/notification.module';
-import { Notification } from 'rdbms/entities/Notification.entity';
 import { CronModule } from './cron/cron.module';
+import { entities, migrations } from './config/database.config';
 
 @Module({
   imports: [
@@ -48,20 +38,8 @@ import { CronModule } from './cron/cron.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
-        entities: [
-          User,
-          Property,
-          Review,
-          Payment,
-          Wallet,
-          Booking,
-          OtpLog,
-          RefreshToken,
-          Invoice,
-          Transaction,
-          Notification,
-        ],
-        migrations: ['dist/migrations/*.js'], // Use compiled migrations
+        entities,
+        migrations,
         synchronize: false, // Ensure this is FALSE when using migrations
       }),
     }),
