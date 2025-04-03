@@ -63,6 +63,7 @@ export enum RegistrationStatus {
 export enum UserType {
   HOST = 'Host',
   GUEST = 'Guest',
+  ADMIN = 'Admin',
 }
 
 export enum BookingStatus {
@@ -109,4 +110,39 @@ export enum PaymentStatus {
 export enum ReviewAction {
   APPROVE = 'Approve',
   REJECT = 'Reject',
+  CANCEL = 'Cancel',
+}
+
+export enum NotificationType {
+  BOOKING_REQUEST = 'Booking Request',
+  BOOKING_APPROVED = 'Booking Approved',
+  BOOKING_REJECTED = 'Booking Rejected',
+  PAYMENT_SUCCESS = 'Payment Success',
+  PAYMENT_FAILED = 'Payment Failed',
+  REFUND = 'Refund',
+  SYSTEM = 'System',
+}
+
+export enum NotificationStatus {
+  UNREAD = 'Unread',
+  READ = 'Read',
+}
+
+export enum QUEUE_NAME {
+  NOTIFICATION = 'notification',
+}
+
+export const RABBITMQ_SINGLETON = 'RABBITMQ_SINGLETON';
+
+export const WEBSOCKET_DISCONNECT_REASON = {
+  AUTHENTICATION_FAILED: 'authentication_failed',
+  CONNECTION_ERROR: 'connection_error',
+  TOKEN_REFRESH_FAILED: 'token_refresh_failed',
+  TOKEN_REFRESH_ERROR: 'token_refresh_error',
+  NORMAL_DISCONNECT: 'normal_disconnect',
+};
+
+export enum Roles {
+  USER = 'Role_User',
+  ADMIN = 'Role_Admin',
 }

@@ -2,6 +2,8 @@ import {
   BookingStatus,
   Category,
   LoginProvider,
+  NotificationStatus,
+  NotificationType,
   PerchTypes,
   UserType,
 } from 'enums';
@@ -41,7 +43,6 @@ export interface PerchRegistrationFormData {
 
 export interface Filter {
   location?: string;
-  type?: PerchTypes;
   limit?: number;
   category?: Category;
   from?: UserType;
@@ -54,4 +55,13 @@ export interface IPersist<T> {
   isPersist: boolean;
   msg: string;
   payload: T;
+}
+
+export interface INotification<T> {
+  user: any;
+  type: NotificationType;
+  status: NotificationStatus;
+  title: string;
+  message: string;
+  data?: T;
 }
