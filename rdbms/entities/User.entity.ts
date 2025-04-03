@@ -1,16 +1,25 @@
-import { Entity, Column, OneToMany, ManyToOne, Index, OneToOne } from 'typeorm';
+import {
+  Entity,
+  Column,
+  OneToMany,
+  ManyToOne,
+  Index,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Booking } from './Booking.entity';
 import { Property } from './Property.entity';
 import { Wallet } from './Wallet.entity';
-
+import { Notification } from './Notification.entity';
+import { Roles } from 'enums';
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ unique: true })
   @Index() // Users will frequently be queried by email
   email: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, select: false })
   password?: string;
 
   @Column()
@@ -20,7 +29,14 @@ export class User extends BaseEntity {
   phone?: string;
 
   @Column({ nullable: true })
-  profilePicture?: string;
+  avatar?: string;
+
+  @Column({
+    type: 'enum',
+    enum: Roles,
+    default: Roles.USER,
+  })
+  role: Roles;
 
   @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
   referredBy?: User;
@@ -47,5 +63,9 @@ export class User extends BaseEntity {
   hostBookings: Booking[];
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)
+  @JoinColumn()
   wallet: Wallet;
+
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications: Notification[];
 }

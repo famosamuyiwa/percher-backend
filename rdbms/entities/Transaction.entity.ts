@@ -1,33 +1,44 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  Index,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, Index } from 'typeorm';
+import { Payment } from './Payment.entity';
 import { Wallet } from './Wallet.entity';
+import { TransactionMode, TransactionStatus, TransactionType } from 'enums';
 import { BaseEntity } from './Base.entity';
 
 @Entity('transactions')
 export class Transaction extends BaseEntity {
+  @ManyToOne(() => Payment, (payment) => payment.transactions)
+  @Index()
+  payment: Payment;
+
   @ManyToOne(() => Wallet, (wallet) => wallet.transactions)
-  @Index() // Wallet transactions should be quickly retrievable
+  @Index()
   wallet: Wallet;
 
-  @Column('decimal')
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
 
   @Column({
     type: 'enum',
-    enum: ['deposit', 'withdrawal', 'booking_payment', 'refund'],
+    enum: TransactionType,
+    default: TransactionType.OTHER,
   })
-  type: string;
+  type: TransactionType;
 
-  @Column({ type: 'enum', enum: ['pending', 'completed', 'failed'] })
-  @Index() // Checking transaction status frequently
-  status: string;
+  @Column({
+    type: 'enum',
+    enum: TransactionMode,
+    nullable: true,
+  })
+  @Index()
+  mode: TransactionMode | null;
 
-  @Column()
-  @Index({ unique: true }) // Reference ID should be unique
-  reference: string;
+  @Column({
+    type: 'enum',
+    enum: TransactionStatus,
+    nullable: true,
+  })
+  status: TransactionStatus;
+
+  @Column({ nullable: true })
+  description: string;
 }

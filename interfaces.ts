@@ -1,19 +1,18 @@
+import {
+  BookingStatus,
+  Category,
+  LoginProvider,
+  NotificationStatus,
+  NotificationType,
+  PerchTypes,
+  UserType,
+} from 'enums';
+
 export interface ApiResponse<T = any> {
   code: number;
   status: string;
   message: string;
   data: T;
-}
-
-export enum ResponseStatus {
-  SUCCESS = 'SUCCESS',
-  FAILED = 'FAILED',
-}
-
-export enum LoginProvider {
-  GOOGLE = 'google',
-  APPLE = 'apple',
-  MAIL = 'mail',
 }
 
 export interface OAuthRequest {
@@ -22,6 +21,47 @@ export interface OAuthRequest {
   email: string;
 }
 
-export enum QueryBy {
-  EMAIL = 'email',
+export interface PerchRegistrationFormData {
+  propertyName: string;
+  propertyType: string;
+  chargeType: string;
+  beds: number;
+  bathrooms: number;
+  description: string;
+  header: string;
+  location: string;
+  price: number;
+  cautionFee: number;
+  gallery: string[];
+  proofOfOwnership: string[];
+  proofOfIdentity: string[];
+  txc: boolean;
+  facilities: string[];
+  checkInTimes: string[];
+  checkOutTime: string;
+}
+
+export interface Filter {
+  location?: string;
+  limit?: number;
+  category?: Category;
+  from?: UserType;
+  bookingStatus?: BookingStatus;
+  perchType?: PerchTypes;
+  searchTerm?: string;
+}
+
+export interface IPersist<T> {
+  isPersist: boolean;
+  msg: string;
+  payload: T;
+}
+
+export interface INotification<T> {
+  user: any;
+  type: NotificationType;
+  status: NotificationStatus;
+  title: string;
+  message: string;
+  data?: T;
 }
