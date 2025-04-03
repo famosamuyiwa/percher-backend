@@ -1,19 +1,29 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './app/auth/auth.module';
 import { User } from 'rdbms/entities/User.entity';
 import { Property } from 'rdbms/entities/Property.entity';
 import { Review } from 'rdbms/entities/Review.entity';
-import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { Wallet } from 'rdbms/entities/Wallet.entity';
 import { Booking } from 'rdbms/entities/Booking.entity';
-import { UserModule } from './user/user.module';
+import { UserModule } from './app/user/user.module';
 import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
+import { PropertyModule } from './app/property/property.module';
+import { BookingModule } from './app/booking/booking.module';
+import { Invoice } from 'rdbms/entities/Invoice.entity';
+import { PaymentModule } from './app/payment/payment.module';
+import { Payment } from 'rdbms/entities/Payment.entity';
+import { IpWhitelistMiddleware } from './middleware';
+import { Transaction } from 'rdbms/entities/Transaction.entity';
+import { WalletModule } from './app/wallet/wallet.module';
+import { NotificationModule } from './app/notification/notification.module';
+import { Notification } from 'rdbms/entities/Notification.entity';
+import { CronModule } from './cron/cron.module';
 
 @Module({
   imports: [
@@ -26,8 +36,7 @@ import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          // expiresIn: '1h',
-          expiresIn: '1m',
+          expiresIn: '1h',
         },
       }),
       global: true,
@@ -47,20 +56,34 @@ import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
           User,
           Property,
           Review,
-          Transaction,
+          Payment,
           Wallet,
           Booking,
           OtpLog,
           RefreshToken,
+          Invoice,
+          Transaction,
+          Notification,
         ],
         migrations: ['dist/migrations/*.js'], // Use compiled migrations
-        synchronize: true, // Ensure this is FALSE when using migrations
+        synchronize: false, // Ensure this is FALSE when using migrations
       }),
     }),
     AuthModule,
     UserModule,
+    PropertyModule,
+    BookingModule,
+    PaymentModule,
+    WalletModule,
+    NotificationModule,
+    CronModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    //protect webhook endpoint from unauthorized IPs
+    consumer.apply(IpWhitelistMiddleware).forRoutes('/payment/webhook');
+  }
+}

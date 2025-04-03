@@ -9,9 +9,9 @@ import {
 
 @Entity('base')
 export class BaseEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn()
   @Index()
-  id: string;
+  id: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

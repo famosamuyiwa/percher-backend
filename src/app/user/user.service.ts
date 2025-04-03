@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ApiResponse, ResponseStatus } from 'interfaces';
+import { ApiResponse } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { Repository } from 'typeorm';
 import { handleError } from 'utils/helper-methods';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ResponseStatus } from 'enums';
 
 @Injectable()
 export class UserService {
@@ -13,7 +14,7 @@ export class UserService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async getUserByUserId(id: string) {
+  async getUserByUserId(id: number) {
     try {
       const user = await this.userRepository.findOne({
         where: { id },
@@ -34,24 +35,24 @@ export class UserService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: number, updateUserDto: UpdateUserDto) {
     try {
-      const user = await this.userRepository.preload({
+      let user = await this.userRepository.preload({
         id,
         ...updateUserDto,
       });
 
       if (!user) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+        throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
       }
 
-      await this.userRepository.save(user);
+      user = await this.userRepository.save(user);
 
       const payload: ApiResponse = {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
         message: 'User updated successfully',
-        data: { user },
+        data: user,
       };
 
       return payload;
@@ -60,7 +61,7 @@ export class UserService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: number) {
     try {
       await this.userRepository.delete({ id });
 

@@ -17,12 +17,14 @@ import {
   generateReferralCode,
   handleError,
 } from 'utils/helper-methods';
-import { ApiResponse, OAuthRequest, ResponseStatus } from 'interfaces';
+import { ApiResponse, OAuthRequest } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { ResponseStatus, defaultAvatar } from 'enums';
+import { Wallet } from 'rdbms/entities/Wallet.entity';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +37,8 @@ export class AuthService {
     private readonly otpLogRepository: Repository<OtpLog>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>,
     private jwtService: JwtService,
   ) {}
 
@@ -77,6 +81,7 @@ export class AuthService {
       const myReferralCode = generateReferralCode(name);
       const newUser = this.userRepository.create({
         name,
+        avatar: defaultAvatar,
         password: hashedPassword,
         email,
         referralCode: myReferralCode,
@@ -87,6 +92,12 @@ export class AuthService {
       }
 
       const user = await this.userRepository.save(newUser);
+
+      const wallet = this.walletRepository.create({
+        user,
+      });
+
+      await this.walletRepository.save(wallet);
 
       return {
         code: HttpStatus.CREATED,
@@ -107,12 +118,13 @@ export class AuthService {
 
       const user = await this.userRepository.findOne({
         where: [{ email: email }],
+        select: ['id', 'password'],
       });
 
       if (!user || !(await bcrypt.compare(password, user.password))) {
         throw new HttpException(
           `Invalid username or password!`,
-          HttpStatus.UNAUTHORIZED,
+          HttpStatus.BAD_REQUEST,
         );
       }
 
@@ -133,15 +145,25 @@ export class AuthService {
       if (!provider || !name || !email)
         throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
 
-      let user = await this.userRepository.findOne({ where: { email } });
+      let user = await this.userRepository.findOne({
+        where: { email },
+        select: ['id', 'password'],
+      });
       if (!user) {
         const myReferralCode = generateReferralCode(name);
         user = this.userRepository.create({
           name,
           email,
           referralCode: myReferralCode,
+          avatar: defaultAvatar,
         });
-        await this.userRepository.save(user);
+        const createdUser = await this.userRepository.save(user);
+
+        const wallet = this.walletRepository.create({
+          user: createdUser,
+        });
+
+        await this.walletRepository.save(wallet);
       }
 
       if (user.password) {
@@ -156,6 +178,20 @@ export class AuthService {
         status: ResponseStatus.SUCCESS,
         message: 'User logged in successfully',
         data: await this.generateUserTokens(user.id),
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async logout(userId: string) {
+    try {
+      await this.dropRefreshToken(userId);
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'User logged out successfully',
+        data: null,
       };
     } catch (err) {
       handleError(err);
@@ -291,16 +327,10 @@ export class AuthService {
         where: { email },
       });
 
-      if (user)
-        throw new HttpException(
-          'User with email already exists',
-          HttpStatus.BAD_REQUEST,
-        );
-
       const payload: ApiResponse = {
-        code: HttpStatus.OK,
+        code: user ? HttpStatus.OK : HttpStatus.NOT_FOUND,
         status: ResponseStatus.SUCCESS,
-        message: 'User fetched successfully',
+        message: user ? 'User with email already exists' : 'User not found',
         data: null,
       };
 
@@ -312,10 +342,11 @@ export class AuthService {
     }
   }
 
-  async findUserByUserId(id: string) {
+  async findUserByUserId(id: number) {
     try {
       const user = await this.userRepository.findOne({
         where: { id },
+        relations: ['wallet'],
       });
 
       if (!user)
@@ -325,7 +356,7 @@ export class AuthService {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
         message: 'User fetched successfully',
-        data: null,
+        data: user,
       };
       return payload;
     } catch (err) {
@@ -358,6 +389,11 @@ export class AuthService {
     });
 
     await this.refreshTokenRepository.save(tokenData);
+  }
+
+  async dropRefreshToken(userId) {
+    //delete previous token
+    await this.refreshTokenRepository.delete({ userId });
   }
 
   async refreshTokens(refreshToken: string) {

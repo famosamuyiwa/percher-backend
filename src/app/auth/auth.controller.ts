@@ -23,7 +23,7 @@ export class AuthController {
   @Get()
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req) {
-    return this.authService.findUserByUserId(req.user);
+    return this.authService.findUserByUserId(req.userId);
   }
 
   @Post('register')
@@ -36,6 +36,11 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  @Get('logout')
+  async logout(@Request() req) {
+    return this.authService.logout(req.userId);
+  }
+
   @Post('/oauth')
   async loginWithOAuth(@Body() details: OAuthRequest) {
     return this.authService.loginWithOAuth(details);
@@ -46,8 +51,8 @@ export class AuthController {
     return this.authService.resetPassword(details);
   }
 
-  @Get('check')
-  findUserByEmail(@Body() email: string) {
+  @Get('check/:email')
+  findUserByEmail(@Param('email') email: string) {
     return this.authService.verifyUserByEmail(email);
   }
 

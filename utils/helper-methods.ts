@@ -1,11 +1,5 @@
 // src/utils/validation-log.helper.ts
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-
-export class Utils {
-  private readonly log = new Logger(Utils.name);
-
-  constructor() {}
-}
+import { HttpException, HttpStatus } from '@nestjs/common';
 
 export async function handleResponse(response) {
   try {
@@ -61,4 +55,12 @@ export const generateOTP = (length: number) => {
   }
 
   return otp;
+};
+
+export const getEnvVariable = (key: string): string => {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`${key} is not set in environment variables`);
+  }
+  return value;
 };

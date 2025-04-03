@@ -5,9 +5,10 @@ import { User } from 'rdbms/entities/User.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
+import { Wallet } from 'rdbms/entities/Wallet.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, OtpLog, RefreshToken])],
+  imports: [TypeOrmModule.forFeature([User, OtpLog, RefreshToken, Wallet])],
   providers: [AuthService],
   controllers: [AuthController],
 })
