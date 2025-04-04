@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { RabbitMQSingleton } from '../rabbitmq/rabbitmq.singleton';
 import { QUEUE_NAME } from 'enums';
 import { BookingService } from './booking.service';
@@ -12,6 +12,7 @@ export class BookingStatusQueueService implements OnModuleInit {
   constructor(
     @Inject('RABBITMQ_SINGLETON')
     private readonly rabbitMQ: RabbitMQSingleton,
+    @Inject(forwardRef(() => BookingService))
     private readonly bookingService: BookingService,
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
@@ -29,23 +30,7 @@ export class BookingStatusQueueService implements OnModuleInit {
 
   private async processBookingStatusMessage(message: any) {
     try {
-      switch (message.type) {
-        case 'UPDATE_STATUS':
-          await this.bookingRepository.update(message.bookingId, {
-            status: message.status,
-          });
-          break;
-        case 'CHECK_UPCOMING':
-          // Handle upcoming booking checks
-          const bookings = await this.bookingService.findAll(
-            { limit: 100, from: message.userType },
-            message.userId,
-          );
-          // Process upcoming bookings
-          break;
-        default:
-          console.warn(`Unknown booking status message type: ${message.type}`);
-      }
+      console.log('message: ', message);
     } catch (error) {
       console.error('Error processing booking status message:', error);
       throw error;
