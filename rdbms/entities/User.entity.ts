@@ -12,14 +12,14 @@ import { Booking } from './Booking.entity';
 import { Property } from './Property.entity';
 import { Wallet } from './Wallet.entity';
 import { Notification } from './Notification.entity';
-
+import { Roles } from 'enums';
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ unique: true })
   @Index() // Users will frequently be queried by email
   email: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, select: false })
   password?: string;
 
   @Column()
@@ -30,6 +30,13 @@ export class User extends BaseEntity {
 
   @Column({ nullable: true })
   avatar?: string;
+
+  @Column({
+    type: 'enum',
+    enum: Roles,
+    default: Roles.USER,
+  })
+  role: Roles;
 
   @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
   referredBy?: User;

@@ -43,7 +43,6 @@ export interface PerchRegistrationFormData {
 
 export interface Filter {
   location?: string;
-  type?: PerchTypes;
   limit?: number;
   category?: Category;
   from?: UserType;

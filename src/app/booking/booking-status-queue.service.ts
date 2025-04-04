@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
-import { RabbitMQSingleton } from '../rabbitmq/rabbitmq.singleton';
+import { RabbitMQSingleton } from 'src/rabbitmq/rabbitmq.singleton';
 import { QUEUE_NAME } from 'enums';
 import { BookingService } from './booking.service';
 import { BookingStatus } from 'enums';

@@ -36,7 +36,7 @@ import { Filter, IPersist } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { Wallet } from 'rdbms/entities/Wallet.entity';
 import { Transaction } from 'rdbms/entities/Transaction.entity';
-import { RabbitMQSingleton } from '../rabbitmq/rabbitmq.singleton';
+import { RabbitMQSingleton } from '../../rabbitmq/rabbitmq.singleton';
 import { NotificationType, NotificationStatus } from 'enums';
 import { INotification } from 'interfaces';
 import { PaymentQueueService } from './payment-queue.service';
@@ -562,6 +562,83 @@ export class PaymentService {
         status: ResponseStatus.SUCCESS,
         message: 'Refund process queued',
         data: null,
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async handleBookingCancellation(bookingId: number) {
+    try {
+      const booking = await this.bookingRepository
+        .createQueryBuilder('booking')
+        .leftJoinAndSelect('booking.guest', 'guest')
+        .leftJoinAndSelect('booking.host', 'host')
+        .leftJoinAndSelect('guest.wallet', 'guestWallet')
+        .leftJoinAndSelect('host.wallet', 'hostWallet')
+        .leftJoinAndSelect('booking.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.payment', 'payment')
+        .where('booking.id = :bookingId', { bookingId })
+        .getOne();
+
+      if (!booking) {
+        throw new BadRequestException('Booking not found');
+      }
+
+      // Find the guest's debit transaction using QueryBuilder
+      const guestDebitTransaction = await this.transactionRepository
+        .createQueryBuilder('transaction')
+        .leftJoinAndSelect('transaction.payment', 'payment')
+        .leftJoinAndSelect('payment.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.booking', 'booking')
+        .where('booking.id = :bookingId', { bookingId })
+        .andWhere('transaction.type = :type', { type: TransactionType.BOOKING })
+        .andWhere('transaction.mode = :mode', { mode: TransactionMode.DEBIT })
+        .andWhere('transaction.status = :status', {
+          status: TransactionStatus.PROCESSED,
+        })
+        .getOne();
+
+      if (!guestDebitTransaction) {
+        throw new BadRequestException('Guest debit transaction not found');
+      }
+
+      // Update guest's transaction status to completed
+      await this.transactionRepository
+        .createQueryBuilder()
+        .update(Transaction)
+        .set({ status: TransactionStatus.COMPLETED })
+        .where('id = :id', { id: guestDebitTransaction.id })
+        .execute();
+
+      const guestRefundTransaction = await this.transactionRepository
+        .createQueryBuilder()
+        .insert()
+        .into(Transaction)
+        .values({
+          type: TransactionType.REFUND,
+          mode: TransactionMode.CREDIT,
+          status: TransactionStatus.COMPLETED,
+          amount: booking.invoice.guestTotal,
+          wallet: { id: booking.guest.wallet.id },
+          payment: { id: booking.invoice.payment.id },
+        })
+        .execute();
+
+      // Update guest's wallet balance using QueryBuilder
+      await this.updateWalletBalance(
+        booking.guest.wallet.id,
+        booking.invoice.guestTotal,
+      );
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Booking cancelled and transactions processed successfully',
+        data: {
+          guestTransaction: guestDebitTransaction,
+          refundTransaction: guestRefundTransaction,
+        },
       };
     } catch (err) {
       handleError(err);

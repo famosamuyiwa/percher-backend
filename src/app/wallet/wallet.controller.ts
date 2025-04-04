@@ -22,7 +22,6 @@ export class WalletController {
   @Get('')
   findOne(@Request() req) {
     const loggedInUserId = req.userId;
-    console.log('loggedInUserId', loggedInUserId);
     return this.walletService.findOne(loggedInUserId);
   }
 

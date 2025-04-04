@@ -118,6 +118,7 @@ export class AuthService {
 
       const user = await this.userRepository.findOne({
         where: [{ email: email }],
+        select: ['id', 'password'],
       });
 
       if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -144,7 +145,10 @@ export class AuthService {
       if (!provider || !name || !email)
         throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
 
-      let user = await this.userRepository.findOne({ where: { email } });
+      let user = await this.userRepository.findOne({
+        where: { email },
+        select: ['id', 'password'],
+      });
       if (!user) {
         const myReferralCode = generateReferralCode(name);
         user = this.userRepository.create({

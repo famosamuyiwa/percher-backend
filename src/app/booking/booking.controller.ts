@@ -40,9 +40,11 @@ export class BookingController {
       cursor,
       limit,
       from,
-      bookingStatus,
+      bookingStatus:
+        bookingStatus !== ('All' as unknown as BookingStatus)
+          ? bookingStatus
+          : undefined,
     };
-    console.log('filter', filter);
     return this.bookingService.findAll(filter, loggedInUserId, cursor);
   }
 
@@ -50,10 +52,11 @@ export class BookingController {
   reviewAction(
     @Param('id') id: number,
     @Query('action') action: ReviewAction,
+    @Query('from') from: UserType,
     @Request() req,
   ) {
     const loggedInUserId = req.userId;
-    return this.bookingService.review(id, action, loggedInUserId);
+    return this.bookingService.review(id, action, loggedInUserId, from);
   }
 
   @Get(':id')

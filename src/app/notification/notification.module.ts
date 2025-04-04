@@ -5,7 +5,7 @@ import { User } from 'rdbms/entities/User.entity';
 import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
 import { NotificationGateway } from './notification.gateway';
-import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
+import { RabbitMQModule } from '../../rabbitmq/rabbitmq.module';
 
 @Module({
   imports: [

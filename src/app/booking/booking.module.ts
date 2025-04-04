@@ -4,12 +4,10 @@ import { BookingController } from './booking.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from 'rdbms/entities/Booking.entity';
 import { Invoice } from 'rdbms/entities/Invoice.entity';
-
-import { PaymentModule } from 'src/payment/payment.module';
-import { NotificationModule } from 'src/notification/notification.module';
 import { BookingStatusQueueService } from './booking-status-queue.service';
-import { RabbitMQModule } from '../rabbitmq/rabbitmq.module';
-
+import { PaymentModule } from 'src/app/payment/payment.module';
+import { NotificationModule } from 'src/app/notification/notification.module';
+import { RabbitMQModule } from 'src/rabbitmq/rabbitmq.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, Invoice]),
