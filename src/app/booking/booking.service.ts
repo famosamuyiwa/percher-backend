@@ -2,18 +2,25 @@ import {
   ForbiddenException,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
 } from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { handleError } from 'utils/helper-methods';
-import { BookingStatus, ResponseStatus, ReviewAction, UserType } from 'enums';
+import {
+  BookingStatus,
+  QUEUE_NAME,
+  ResponseStatus,
+  ReviewAction,
+  UserType,
+} from 'enums';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
+import { RabbitMQSingleton } from 'src/rabbitmq/rabbitmq.singleton';
 import { PaymentService } from 'src/app/payment/payment.service';
-import { NotificationService } from 'src/app/notification/notification.service';
 
 @Injectable()
 export class BookingService {
@@ -21,7 +28,6 @@ export class BookingService {
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
     private readonly paymentService: PaymentService,
-    private readonly notificationService: NotificationService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto, userId) {
@@ -54,6 +60,7 @@ export class BookingService {
       const queryBuilder = this.bookingRepository
         .createQueryBuilder('booking')
         .innerJoinAndSelect('booking.property', 'property')
+        .innerJoinAndSelect('property.location', 'location')
         .innerJoinAndSelect('booking.invoice', 'invoice')
         .andWhere('booking.status != :status', { status: BookingStatus.DRAFT })
         .orderBy('booking.id', 'DESC')
@@ -108,7 +115,13 @@ export class BookingService {
         where: {
           id,
         },
-        relations: ['host', 'guest', 'property', 'invoice'],
+        relations: [
+          'host',
+          'guest',
+          'property',
+          'invoice',
+          'property.location',
+        ],
       });
 
       return {
@@ -184,6 +197,7 @@ export class BookingService {
         status,
       });
 
+      // Queue payment operations
       if (action === ReviewAction.APPROVE) {
         await this.paymentService.handleBookingApproval(id);
       }
@@ -196,10 +210,11 @@ export class BookingService {
         await this.paymentService.handleBookingCancellation(id);
       }
 
+      // Return immediate response
       const payload: ApiResponse = {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
-        message: 'Booking reviewed successfully',
+        message: 'Booking review process queued',
         data: null,
       };
       return payload;

@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   Query,
+  Put,
 } from '@nestjs/common';
 import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -31,7 +32,6 @@ export class PropertyController {
 
   @Get()
   findAll(
-    @Query('location') location: string,
     @Query('limit') limit: number = 10,
     @Query('cursor') cursor: number,
     @Query('category') category: Category,
@@ -41,7 +41,6 @@ export class PropertyController {
     @Request() req,
   ) {
     const filter = {
-      location,
       limit,
       category,
       from,
@@ -70,7 +69,7 @@ export class PropertyController {
     return this.propertyService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(
     @Param('id') id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,

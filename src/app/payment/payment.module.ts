@@ -8,6 +8,7 @@ import { Booking } from 'rdbms/entities/Booking.entity';
 import { User } from 'rdbms/entities/User.entity';
 import { Wallet } from 'rdbms/entities/Wallet.entity';
 import { Transaction } from 'rdbms/entities/Transaction.entity';
+import { PaymentQueueService } from './payment-processing.queue.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { Transaction } from 'rdbms/entities/Transaction.entity';
     HttpModule,
   ],
   controllers: [PaymentController],
-  providers: [PaymentService],
-  exports: [PaymentService],
+  providers: [PaymentService, PaymentQueueService],
+  exports: [PaymentService, PaymentQueueService],
 })
 export class PaymentModule {}

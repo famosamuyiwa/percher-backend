@@ -130,6 +130,8 @@ export enum NotificationStatus {
 
 export enum QUEUE_NAME {
   NOTIFICATION = 'notification',
+  PAYMENT = 'payment_processing',
+  BOOKING_STATUS = 'booking_processing',
 }
 
 export const RABBITMQ_SINGLETON = 'RABBITMQ_SINGLETON';
@@ -145,4 +147,19 @@ export const WEBSOCKET_DISCONNECT_REASON = {
 export enum Roles {
   USER = 'Role_User',
   ADMIN = 'Role_Admin',
+}
+
+export enum PaymentProcessingType {
+  TRANSACTION_PROCESSING = 'TRANSACTION_PROCESSING',
+}
+
+export enum MediaUploadType {
+  PROOF_OF_IDENTITY = 'proofOfOwnership',
+  PROOF_OF_OWNERSHIP = 'proofOfIdentity',
+  GALLERY = 'gallery',
+}
+
+export enum MediaEntityType {
+  USER = 'user',
+  PROPERTY = 'property',
 }

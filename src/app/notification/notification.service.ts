@@ -28,8 +28,6 @@ export class NotificationService implements OnModuleInit {
   constructor(
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
     @Inject(forwardRef(() => NotificationGateway))
     private readonly notificationGateway: NotificationGateway,
     @Inject('RABBITMQ_SINGLETON')
@@ -72,7 +70,7 @@ export class NotificationService implements OnModuleInit {
     }
   }
 
-  async createNotification(data: INotification<any>) {
+  async createNotification(data: INotification) {
     try {
       const notification = this.notificationRepository.create(data);
       const savedNotification =

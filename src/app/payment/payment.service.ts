@@ -5,9 +5,10 @@ import {
   Injectable,
   UnprocessableEntityException,
   Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { catchError, lastValueFrom, map } from 'rxjs';
+import { async, catchError, lastValueFrom, map } from 'rxjs';
 import { AxiosError } from 'axios';
 import { Repository } from 'typeorm';
 import { Request } from 'express';
@@ -39,6 +40,7 @@ import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { RabbitMQSingleton } from '../../rabbitmq/rabbitmq.singleton';
 import { NotificationType, NotificationStatus } from 'enums';
 import { INotification } from 'interfaces';
+import { PaymentQueueService } from './payment-processing.queue.service';
 
 @Injectable()
 export class PaymentService {
@@ -67,6 +69,21 @@ export class PaymentService {
     @Inject('RABBITMQ_SINGLETON')
     private readonly rabbitMQ: RabbitMQSingleton,
   ) {}
+
+  async process(message) {
+    try {
+      switch (message.type) {
+        case 'TRANSACTION_PROCESSING':
+          await this.processPayment(message.reference);
+          break;
+        default:
+          console.warn(`Unknown payment message type: ${message.type}`);
+      }
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
   async initPayment(input: PaymentInitDTO) {
     try {
       const response = await this.paystackApiAxiosClient<
@@ -93,7 +110,6 @@ export class PaymentService {
     try {
       const existingRef = await this.paymentRepository.findOne({
         where: { reference },
-        relations: ['invoice', 'invoice.booking', 'wallet'],
       });
 
       if (existingRef && existingRef.status !== PaymentStatus.PENDING) {
@@ -105,69 +121,20 @@ export class PaymentService {
         };
       }
 
-      const response = await this.paystackApiAxiosClient<
-        IPaymentVerifyResponse,
-        null
-      >('get', `transaction/verify/${reference}`);
-
-      if (response.data.status !== 'success') {
-        throw new UnprocessableEntityException(response.message);
-      }
-
-      let payment: Payment | undefined = undefined;
-      const amount = response.data.amount / 100; // paystack deals in milliseconds, convert
-      const model = {
-        amount,
-        email: response.data.customer.email,
-        reference: response.data.reference,
-        status: PaymentStatus.SUCCESS,
-        type: PaymentType.CHARGE,
+      const message = {
+        type: 'TRANSACTION_PROCESSING',
+        reference,
       };
 
-      if (existingRef) {
-        payment = await this.paymentRepository.preload({
-          id: existingRef.id,
-          ...model,
-        });
-      } else {
-        payment = this.paymentRepository.create(model);
-      }
+      // Queue the payment verification
+      await this.rabbitMQ.pushToQueue(QUEUE_NAME.PAYMENT, message);
 
-      if (existingRef?.invoice?.booking?.id) {
-        await this.bookingRepository.update(existingRef?.invoice?.booking?.id, {
-          paymentStatus: PaymentStatus.SUCCESS,
-          status: BookingStatus.PENDING,
-        });
-      }
-
-      if (!payment) {
-        throw new BadRequestException(
-          `Something went wrong while persisting payment record with transactionRef: ${reference}`,
-        );
-      }
-
-      const data = await this.paymentRepository.save(payment);
-
-      if (!existingRef?.wallet?.id) {
-        throw new BadRequestException('Wallet not found');
-      }
-
-      const walletData = await this.persistTransaction(
-        existingRef.transactionType,
-        existingRef.amount,
-        existingRef.wallet.id,
-        existingRef.id,
-      );
-
-      if (!walletData.isPersist) {
-        throw new BadRequestException(walletData.msg);
-      }
-
+      // Return immediate response
       return {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
-        message: 'Payment verified and persisted successfully',
-        data,
+        message: 'Payment verification queued',
+        data: existingRef || { reference, status: PaymentStatus.PENDING },
       };
     } catch (err) {
       handleError(err);
@@ -322,6 +289,83 @@ export class PaymentService {
     handleError(err);
   }
 
+  async processPayment(reference: string) {
+    try {
+      const existingRef = await this.paymentRepository.findOne({
+        where: { reference },
+        relations: ['invoice', 'invoice.booking', 'wallet'],
+      });
+
+      //verify payment was successful
+      const response = await this.paystackApiAxiosClient<
+        IPaymentVerifyResponse,
+        null
+      >('get', `transaction/verify/${reference}`);
+
+      if (response.data.status !== 'success') {
+        throw new UnprocessableEntityException(response.message);
+      }
+
+      let payment: Payment | undefined = undefined;
+      const amount = response.data.amount / 100; // paystack deals in milliseconds, convert
+      const model = {
+        amount,
+        email: response.data.customer.email,
+        reference: response.data.reference,
+        status: PaymentStatus.SUCCESS,
+        type: PaymentType.CHARGE,
+      };
+
+      if (existingRef) {
+        payment = await this.paymentRepository.preload({
+          id: existingRef.id,
+          ...model,
+        });
+      } else {
+        payment = this.paymentRepository.create(model);
+      }
+
+      if (existingRef?.invoice?.booking?.id) {
+        await this.bookingRepository.update(existingRef?.invoice?.booking?.id, {
+          paymentStatus: PaymentStatus.SUCCESS,
+          status: BookingStatus.PENDING,
+        });
+      }
+
+      if (!payment) {
+        throw new BadRequestException(
+          `Something went wrong while persisting payment record with transactionRef: ${reference}`,
+        );
+      }
+
+      const data = await this.paymentRepository.save(payment);
+
+      if (!existingRef?.wallet?.id) {
+        throw new BadRequestException('Wallet not found');
+      }
+
+      const walletData = await this.persistTransaction(
+        existingRef.transactionType,
+        existingRef.amount,
+        existingRef.wallet.id,
+        existingRef.id,
+      );
+
+      if (!walletData.isPersist) {
+        throw new BadRequestException(walletData.msg);
+      }
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Payment verified and persisted successfully',
+        data,
+      };
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
   async updateWalletBalance(
     walletId: number,
     amount: number,
@@ -474,17 +518,31 @@ export class PaymentService {
 
       const transaction = await this.transactionRepository.save(model);
 
+      //get property name to notify
+      const payment = await this.paymentRepository
+        .createQueryBuilder('payment')
+        .leftJoinAndSelect('payment.invoice', 'invoice')
+        .leftJoinAndSelect('invoice.booking', 'booking')
+        .leftJoinAndSelect('booking.property', 'property')
+        .where('payment.id = :paymentId', { paymentId })
+        .getOne();
+
+      //get user to notify
+      const user = await this.userRepository.findOne({
+        where: { id: walletId },
+      });
+
       // Create notification for the host
-      const message: INotification<any> = {
-        user: 1 as unknown as number,
+      const message: INotification = {
+        user: user?.id,
         type: NotificationType.BOOKING_REQUEST,
         title: 'New Booking Request',
-        message: `You have received a new booking request`,
+        message: `You have received a new booking request for ${payment?.invoice?.booking?.property?.name}`,
         status: NotificationStatus.UNREAD,
       };
 
       // Publish notification to RabbitMQ queue
-      await this.rabbitMQ.publishMessage(QUEUE_NAME.NOTIFICATION, message);
+      await this.rabbitMQ.pushToQueue(QUEUE_NAME.NOTIFICATION, message);
 
       return {
         isPersist: true,
@@ -596,61 +654,19 @@ export class PaymentService {
         throw new BadRequestException('Booking not found');
       }
 
-      // Find the guest's debit transaction using QueryBuilder
-      const guestDebitTransaction = await this.transactionRepository
-        .createQueryBuilder('transaction')
-        .leftJoinAndSelect('transaction.payment', 'payment')
-        .leftJoinAndSelect('payment.invoice', 'invoice')
-        .leftJoinAndSelect('invoice.booking', 'booking')
-        .where('booking.id = :bookingId', { bookingId })
-        .andWhere('transaction.type = :type', { type: TransactionType.BOOKING })
-        .andWhere('transaction.mode = :mode', { mode: TransactionMode.DEBIT })
-        .andWhere('transaction.status = :status', {
-          status: TransactionStatus.PROCESSED,
-        })
-        .getOne();
+      const message = {
+        type: 'PROCESS_REFUND',
+        bookingId,
+      };
+      // Queue the refund process
+      // await this.rabbitMQ.pushToQueue(QUEUE_NAME.PAYMENT, message);
 
-      if (!guestDebitTransaction) {
-        throw new BadRequestException('Guest debit transaction not found');
-      }
-
-      // Update guest's transaction status to completed
-      await this.transactionRepository
-        .createQueryBuilder()
-        .update(Transaction)
-        .set({ status: TransactionStatus.COMPLETED })
-        .where('id = :id', { id: guestDebitTransaction.id })
-        .execute();
-
-      // Create refund transaction for guest
-      const guestRefundTransaction = await this.transactionRepository
-        .createQueryBuilder()
-        .insert()
-        .into(Transaction)
-        .values({
-          type: TransactionType.REFUND,
-          mode: TransactionMode.CREDIT,
-          status: TransactionStatus.COMPLETED,
-          amount: booking.invoice.guestTotal,
-          wallet: { id: booking.guest.wallet.id },
-          payment: { id: booking.invoice.payment.id },
-        })
-        .execute();
-
-      // Update guest's wallet balance with refund using QueryBuilder
-      await this.updateWalletBalance(
-        booking.guest.wallet.id,
-        booking.invoice.guestTotal,
-      );
-
+      // Return immediate response
       return {
         code: HttpStatus.OK,
         status: ResponseStatus.SUCCESS,
-        message: 'Booking rejected and refund processed successfully',
-        data: {
-          debitTransaction: guestDebitTransaction,
-          refundTransaction: guestRefundTransaction,
-        },
+        message: 'Refund process queued',
+        data: null,
       };
     } catch (err) {
       handleError(err);

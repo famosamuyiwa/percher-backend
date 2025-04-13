@@ -14,6 +14,7 @@ import { WalletModule } from './app/wallet/wallet.module';
 import { NotificationModule } from './app/notification/notification.module';
 import { CronModule } from './cron/cron.module';
 import { entities, migrations } from './config/database.config';
+import { UploadsModule } from './app/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { entities, migrations } from './config/database.config';
     WalletModule,
     NotificationModule,
     CronModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
