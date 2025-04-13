@@ -527,14 +527,9 @@ export class PaymentService {
         .where('payment.id = :paymentId', { paymentId })
         .getOne();
 
-      //get user to notify
-      const user = await this.userRepository.findOne({
-        where: { id: walletId },
-      });
-
       // Create notification for the host
       const message: INotification = {
-        user: user?.id,
+        user: payment?.invoice?.booking?.host?.id,
         type: NotificationType.BOOKING_REQUEST,
         title: 'New Booking Request',
         message: `You have received a new booking request for ${payment?.invoice?.booking?.property?.name}`,
