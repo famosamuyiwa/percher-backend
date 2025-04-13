@@ -24,22 +24,7 @@ export class PaymentQueueService implements OnModuleInit {
 
   private async processPaymentMessage(message: any) {
     try {
-      switch (message.type) {
-        case 'VERIFY_PAYMENT':
-          await this.paymentService.verifyPayment(message.reference);
-          break;
-        case 'PROCESS_REFUND':
-          await this.paymentService.handleBookingRejection(message.bookingId);
-          break;
-        case 'UPDATE_WALLET':
-          await this.paymentService.updateWalletBalance(
-            message.walletId,
-            message.amount,
-          );
-          break;
-        default:
-          console.warn(`Unknown payment message type: ${message.type}`);
-      }
+      await this.paymentService.process(message);
     } catch (error) {
       console.error('Error processing payment message:', error);
       throw error;

@@ -3,11 +3,11 @@ import {
   IsBoolean,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
 } from 'class-validator';
 import { ChargeType, Facility, PerchTypes } from 'enums';
-
 export class CreatePropertyDto {
   @IsString()
   @IsNotEmpty()
@@ -34,12 +34,8 @@ export class CreatePropertyDto {
   description: string;
 
   @IsString()
-  @IsNotEmpty()
-  header: string;
-
-  @IsString()
-  @IsNotEmpty()
-  location: string;
+  @IsOptional()
+  header?: string;
 
   @IsNumber()
   @IsNotEmpty()
@@ -48,18 +44,6 @@ export class CreatePropertyDto {
   @IsNumber()
   @IsNotEmpty()
   cautionFee: number;
-
-  @IsArray()
-  @IsOptional()
-  gallery?: string[];
-
-  @IsArray()
-  @IsNotEmpty()
-  proofOfOwnership: string[];
-
-  @IsArray()
-  @IsNotEmpty()
-  proofOfIdentity: string[];
 
   @IsBoolean()
   @IsNotEmpty()
@@ -76,4 +60,53 @@ export class CreatePropertyDto {
   @IsString()
   @IsOptional()
   checkOutTime?: string;
+
+  // location
+  @IsString()
+  @IsNotEmpty()
+  latitude: string;
+
+  @IsString()
+  @IsNotEmpty()
+  longitude: string;
+
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+
+  @IsString()
+  @IsNotEmpty()
+  streetAddress: string;
+
+  @IsNumber()
+  @IsNotEmpty()
+  propertyNumber: number;
+
+  @IsString()
+  @IsNotEmpty()
+  city: string;
+
+  @IsString()
+  @IsNotEmpty()
+  state: string;
+
+  @IsString()
+  @IsNotEmpty()
+  country: string;
+
+  @IsString()
+  @IsOptional()
+  snapshot?: string;
+
+  @IsArray()
+  @IsOptional()
+  proofOfIdentity?: string[];
+
+  @IsArray()
+  @IsOptional()
+  gallery?: string[];
+
+  @IsArray()
+  @IsOptional()
+  proofOfOwnership?: string[];
 }

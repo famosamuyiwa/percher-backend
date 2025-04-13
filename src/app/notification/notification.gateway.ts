@@ -41,7 +41,9 @@ export class NotificationGateway
       }
 
       const jwt = token.replace('Bearer ', '');
-      const payload = this.jwtService.decode(jwt);
+      const payload = this.jwtService.verify(jwt, {
+        secret: this.configService.get<string>('JWT_SECRET'),
+      });
       return Number(payload.userId);
     } catch (error) {
       console.error('JWT verification failed:', error);
@@ -92,13 +94,11 @@ export class NotificationGateway
   }
 
   // Method to send notification to a specific user
-  async sendNotificationToUser(
-    userId: number,
-    notification: INotification<any>,
-  ) {
+  async sendNotificationToUser(userId: number, notification: INotification) {
     try {
       console.log('Attempting to send notification to user:', userId);
       const userSocket = this.userSockets.get(userId);
+      console.log('userSocket', userSocket);
 
       if (userSocket) {
         console.log('Sending notification to user:', userId);
@@ -119,7 +119,7 @@ export class NotificationGateway
   }
 
   // Method to broadcast notification to multiple users
-  async broadcastToUsers(userIds: number[], notification: INotification<any>) {
+  async broadcastToUsers(userIds: number[], notification: INotification) {
     for (const userId of userIds) {
       await this.sendNotificationToUser(userId, notification);
     }
@@ -134,7 +134,6 @@ export class NotificationGateway
         secret: this.configService.get<string>('JWT_SECRET'),
       });
       const userId = Number(payload.userId);
-
       await this.notificationService.markAsRead(notificationId, userId);
 
       // Update unread count

@@ -1,30 +1,39 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
-import { handleError } from 'utils/helper-methods';
+import {
+  getFilteredPropertyMedia,
+  getStatusFromAction,
+  handleError,
+} from 'utils/helper-methods';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Property } from 'rdbms/entities/Property.entity';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
 import {
   Category,
+  MediaEntityType,
+  MediaUploadType,
   RegistrationStatus,
   ResponseStatus,
   ReviewAction,
   UserType,
 } from 'enums';
+import { GlobalUtilService } from 'src/global-utils';
+import { propertyMediaTypes } from 'utils/constants';
 
 @Injectable()
 export class PropertyService {
   constructor(
     @InjectRepository(Property)
     private readonly propertyRepository: Repository<Property>,
+    private readonly globalUtilService: GlobalUtilService,
   ) {}
 
   async create(createPropertyDto: CreatePropertyDto, loggedInUserId) {
     try {
-      const model = this.propertyRepository.create({
-        ...createPropertyDto,
+      // Create a new property entity with the correct property names
+      const propertyData = {
         name: createPropertyDto.propertyName,
         type: createPropertyDto.propertyType,
         bed: createPropertyDto.beds,
@@ -33,8 +42,26 @@ export class PropertyService {
         checkOutPeriod: createPropertyDto.checkOutTime,
         termsAndConditions: createPropertyDto.txc,
         host: loggedInUserId,
-      });
+        description: createPropertyDto.description,
+        price: createPropertyDto.price,
+        cautionFee: createPropertyDto.cautionFee,
+        header: createPropertyDto.header,
+        chargeType: createPropertyDto.chargeType,
+        facilities: createPropertyDto.facilities,
+        location: {
+          latitude: createPropertyDto.latitude,
+          longitude: createPropertyDto.longitude,
+          address: `${createPropertyDto.streetAddress}, ${createPropertyDto.city}, ${createPropertyDto.state}. ${createPropertyDto.country}`,
+          streetAddress: createPropertyDto.streetAddress,
+          propertyNumber: createPropertyDto.propertyNumber,
+          city: createPropertyDto.city,
+          state: createPropertyDto.state,
+          country: createPropertyDto.country,
+          snapshotUrl: createPropertyDto.snapshot,
+        },
+      };
 
+      const model = this.propertyRepository.create(propertyData);
       const property = await this.propertyRepository.save(model);
 
       const payload: ApiResponse<Property> = {
@@ -45,16 +72,18 @@ export class PropertyService {
       };
       return payload;
     } catch (err) {
+      console.log('err', err);
       handleError(err);
     }
   }
 
   async findAll(filter: Filter, userId: number, cursor?: number) {
-    const { limit, category, location, from, perchType, searchTerm } = filter;
+    const { limit, category, from, perchType, searchTerm } = filter;
     try {
       const queryBuilder = this.propertyRepository
         .createQueryBuilder('property')
         .orderBy('property.id', 'DESC')
+        .innerJoinAndSelect('property.location', 'location')
         .take(limit);
 
       if (category) {
@@ -67,7 +96,7 @@ export class PropertyService {
 
       if (searchTerm) {
         queryBuilder.andWhere(
-          '(property.name ILIKE :searchTerm OR property.location ILIKE :searchTerm)',
+          '(property.name ILIKE :searchTerm OR property.location.streetAddress ILIKE :searchTerm)',
           {
             searchTerm: `%${searchTerm}%`,
           },
@@ -113,18 +142,38 @@ export class PropertyService {
         nextCursor, // Return nextCursor for the next batch
       };
     } catch (err) {
+      console.log('err', err);
       handleError(err);
     }
   }
 
   async findOne(id: number) {
     try {
-      const property = await this.propertyRepository.findOne({
-        where: {
-          id,
-        },
-        relations: ['host'],
-      });
+      const queryBuilder = this.propertyRepository
+        .createQueryBuilder('property')
+        .where('property.id = :id', { id })
+        .innerJoinAndSelect('property.location', 'location')
+        .innerJoinAndSelect('property.host', 'host');
+
+      const property = await queryBuilder.getOne();
+
+      if (!property)
+        throw new HttpException(
+          'Property does not exist',
+          HttpStatus.BAD_REQUEST,
+        );
+
+      //get media uploads for property
+      const mediaUploads = await this.globalUtilService.getMediaUploads(
+        property.id,
+        MediaEntityType.PROPERTY,
+        property.host.id,
+        propertyMediaTypes,
+      );
+
+      property['gallery'] = mediaUploads?.gallery ?? [];
+      property['proofOfIdentity'] = mediaUploads?.proofOfIdentity ?? [];
+      property['proofOfOwnership'] = mediaUploads?.proofOfOwnership ?? [];
 
       return {
         code: HttpStatus.OK,
@@ -133,6 +182,7 @@ export class PropertyService {
         data: property,
       };
     } catch (err) {
+      console.log('err', err);
       handleError(err);
     }
   }
@@ -199,14 +249,5 @@ export class PropertyService {
       .execute();
 
     return { message: 'Category removed successfully' };
-  }
-}
-
-function getStatusFromAction(action: ReviewAction) {
-  switch (action) {
-    case ReviewAction.APPROVE:
-      return RegistrationStatus.APPROVED;
-    case ReviewAction.REJECT:
-      return RegistrationStatus.REJECTED;
   }
 }

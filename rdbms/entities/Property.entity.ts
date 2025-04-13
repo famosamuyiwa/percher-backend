@@ -1,4 +1,12 @@
-import { Entity, Column, ManyToOne, OneToMany, Index, OneToOne } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  OneToMany,
+  Index,
+  OneToOne,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './User.entity';
 import { Booking } from './Booking.entity';
 import { BaseEntity } from './Base.entity';
@@ -10,7 +18,9 @@ import {
   PerchTypes,
   RegistrationStatus,
 } from 'enums';
-import { Invoice } from './Invoice.entity';
+import { Location } from './Location.entity';
+import { MediaUpload } from './MediaUpload';
+import { MediaEntityType } from 'enums';
 
 @Entity('properties')
 export class Property extends BaseEntity {
@@ -42,21 +52,14 @@ export class Property extends BaseEntity {
   @Column('text')
   description: string;
 
-  @Column()
-  @Index() // Searching properties by location is common
-  location: string;
-
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   cautionFee: number;
 
-  @Column()
-  header: string;
-
-  @Column('simple-array', { nullable: true })
-  gallery?: string[];
+  @Column({ nullable: true })
+  header?: string;
 
   @Column({
     type: 'enum',
@@ -76,12 +79,6 @@ export class Property extends BaseEntity {
     enum: RegistrationStatus,
   })
   status: RegistrationStatus;
-
-  @Column('simple-array')
-  proofOfIdentity: string[];
-
-  @Column('simple-array')
-  proofOfOwnership: string[];
 
   @Column()
   termsAndConditions: boolean;
@@ -106,4 +103,20 @@ export class Property extends BaseEntity {
 
   @OneToMany(() => Review, (review) => review.property)
   reviews: Review[];
+
+  @OneToOne(() => Location, (location) => location.property, {
+    cascade: true,
+  })
+  @JoinColumn()
+  location: Location;
+
+  @OneToMany(
+    () => MediaUpload,
+    (mediaUpload) => mediaUpload.mediaEntityTypeId,
+    {
+      cascade: true,
+    },
+  )
+  @JoinColumn()
+  mediaUploads: MediaUpload[];
 }

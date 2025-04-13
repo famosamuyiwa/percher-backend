@@ -10,8 +10,6 @@ import { UpdateBookingDto } from './dto/update-booking.dto';
 import { handleError } from 'utils/helper-methods';
 import {
   BookingStatus,
-  NotificationStatus,
-  NotificationType,
   QUEUE_NAME,
   ResponseStatus,
   ReviewAction,
@@ -21,10 +19,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
-import { BookingStatusQueueService } from './booking-status-queue.service';
 import { RabbitMQSingleton } from 'src/rabbitmq/rabbitmq.singleton';
 import { PaymentService } from 'src/app/payment/payment.service';
-import { NotificationService } from 'src/app/notification/notification.service';
 
 @Injectable()
 export class BookingService {
@@ -32,10 +28,6 @@ export class BookingService {
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
     private readonly paymentService: PaymentService,
-    private readonly notificationService: NotificationService,
-    private readonly bookingStatusQueueService: BookingStatusQueueService,
-    @Inject('RABBITMQ_SINGLETON')
-    private readonly rabbitMQ: RabbitMQSingleton,
   ) {}
 
   async create(createBookingDto: CreateBookingDto, userId) {
@@ -68,6 +60,7 @@ export class BookingService {
       const queryBuilder = this.bookingRepository
         .createQueryBuilder('booking')
         .innerJoinAndSelect('booking.property', 'property')
+        .innerJoinAndSelect('property.location', 'location')
         .innerJoinAndSelect('booking.invoice', 'invoice')
         .andWhere('booking.status != :status', { status: BookingStatus.DRAFT })
         .orderBy('booking.id', 'DESC')
@@ -122,7 +115,13 @@ export class BookingService {
         where: {
           id,
         },
-        relations: ['host', 'guest', 'property', 'invoice'],
+        relations: [
+          'host',
+          'guest',
+          'property',
+          'invoice',
+          'property.location',
+        ],
       });
 
       return {
@@ -191,17 +190,6 @@ export class BookingService {
           HttpStatus.FORBIDDEN,
         );
       }
-
-      const message = {
-        type: 'UPDATE_STATUS',
-        bookingId: id,
-        status:
-          action === ReviewAction.APPROVE
-            ? BookingStatus.UPCOMING
-            : BookingStatus.REJECTED,
-      };
-      // Queue the status update
-      await this.rabbitMQ.pushToQueue(QUEUE_NAME.BOOKING_STATUS, message);
 
       const status = getStatusFromAction(action);
 

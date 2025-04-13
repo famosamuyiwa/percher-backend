@@ -9,7 +9,8 @@ import { Invoice } from 'rdbms/entities/Invoice.entity';
 import { Payment } from 'rdbms/entities/Payment.entity';
 import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { Notification } from 'rdbms/entities/Notification.entity';
-
+import { Location } from 'rdbms/entities/Location.entity';
+import { MediaUpload } from 'rdbms/entities/MediaUpload';
 export const entities = [
   User,
   Property,
@@ -22,6 +23,8 @@ export const entities = [
   Invoice,
   Transaction,
   Notification,
+  Location,
+  MediaUpload,
 ];
 
 export const migrations = ['dist/migrations/*.js'];
