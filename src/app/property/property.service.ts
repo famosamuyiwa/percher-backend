@@ -96,7 +96,7 @@ export class PropertyService {
 
       if (searchTerm) {
         queryBuilder.andWhere(
-          '(property.name ILIKE :searchTerm OR property.location.streetAddress ILIKE :searchTerm)',
+          '(property.name ILIKE :searchTerm OR location.address ILIKE :searchTerm)',
           {
             searchTerm: `%${searchTerm}%`,
           },
