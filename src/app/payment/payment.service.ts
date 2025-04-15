@@ -524,6 +524,7 @@ export class PaymentService {
         .leftJoinAndSelect('payment.invoice', 'invoice')
         .leftJoinAndSelect('invoice.booking', 'booking')
         .leftJoinAndSelect('booking.property', 'property')
+        .leftJoinAndSelect('booking.host', 'host')
         .where('payment.id = :paymentId', { paymentId })
         .getOne();
 
