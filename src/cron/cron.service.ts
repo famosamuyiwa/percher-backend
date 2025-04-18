@@ -60,7 +60,7 @@ export class CronService {
 
         // Send notification to guest
         await this.notificationService.createNotification({
-          user: booking.guest.id,
+          user: booking.guest,
           type: NotificationType.BOOKING_APPROVED,
           title: 'Booking Started',
           message: `Your booking at ${booking.property.name} has started today.`,
@@ -74,7 +74,7 @@ export class CronService {
 
         // Send notification to host
         await this.notificationService.createNotification({
-          user: booking.host.id,
+          user: booking.host,
           type: NotificationType.BOOKING_APPROVED,
           title: 'Guest Checked In',
           message: `A guest checks in at ${booking.property.name} today.`,
@@ -133,7 +133,7 @@ export class CronService {
 
         // Send notification to guest
         await this.notificationService.createNotification({
-          user: booking.guest.id,
+          user: booking.guest,
           type: NotificationType.SYSTEM,
           title: 'Booking Completed',
           message: `Your booking at ${booking.property.name} has ended.`,
@@ -147,7 +147,7 @@ export class CronService {
 
         // Send notification to host
         await this.notificationService.createNotification({
-          user: booking.host.id,
+          user: booking.host,
           type: NotificationType.SYSTEM,
           title: 'Booking Completed',
           message: `A guest has checked out from ${booking.property.name}.`,

@@ -24,6 +24,7 @@ import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import { WelcomeEmail } from './templates/welcome-email';
 import { VerificationEmail } from './templates/verification-email';
+import { PushNotificationService } from './push-notification.service';
 
 @Injectable()
 export class NotificationService {
@@ -36,6 +37,7 @@ export class NotificationService {
     private readonly notificationGateway: NotificationGateway,
     @Inject('RABBITMQ_SINGLETON')
     private readonly rabbitMQ: RabbitMQSingleton,
+    private readonly pushNotificationService: PushNotificationService,
   ) {}
 
   async process(message) {
@@ -52,6 +54,7 @@ export class NotificationService {
           await this.createNotification(message);
           break;
         case NotificationChannel.PUSH:
+          await this.handlePushNotificationInQueue(message);
           break;
         default:
           console.warn(
@@ -63,38 +66,21 @@ export class NotificationService {
     }
   }
 
-  // try {
-  // const {
-  //   notificationId,
-  //   user,
-  //   type,
-  //   title,
-  //   message: notificationMessage,
-  //   data,
-  //   createdAt,
-  // } = message;
-  //   await this.createNotification({
-  //     user,
-  //     type,
-  //     title,
-  //     message: notificationMessage,
-  //     data,
-  //     status: NotificationStatus.UNREAD,
-  //   });
-  // } catch (error) {
-  //   console.error('Error sending WebSocket notification:', error);
-  //   throw error;
-  // }
-
   async createNotification(data: INotification) {
+    if (!data.user) return;
+
     try {
       const notification = this.notificationRepository.create({
-        ...data,
+        user: { id: data.user.id },
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        data: data.data,
         status: NotificationStatus.UNREAD,
       });
       const savedNotification =
         await this.notificationRepository.save(notification);
-      await this.notificationGateway.sendNotificationToUser(data.user, data);
+      await this.notificationGateway.sendNotificationToUser(data.user.id, data);
       return savedNotification;
     } catch (error) {
       handleError(error);
@@ -261,5 +247,16 @@ export class NotificationService {
         );
         break;
     }
+  }
+
+  async handlePushNotificationInQueue(message: INotification) {
+    if (!message.user?.expoPushToken) return;
+    console.log(`sending push notification for: ${message}`);
+    await this.pushNotificationService.sendPushNotification(
+      message.user.expoPushToken,
+      message.title,
+      message.message,
+      message.data,
+    );
   }
 }
