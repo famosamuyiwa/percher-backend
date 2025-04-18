@@ -130,6 +130,7 @@ export enum NotificationChannel {
   SMS_EMAIL = 'SMS_EMAIL',
   IN_APP = 'IN_APP',
   PUSH = 'PUSH',
+  IN_APP_PUSH = 'IN_APP_PUSH',
 }
 
 export enum NotificationStatus {

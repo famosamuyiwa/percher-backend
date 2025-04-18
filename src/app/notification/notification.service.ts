@@ -56,6 +56,10 @@ export class NotificationService {
         case NotificationChannel.PUSH:
           await this.handlePushNotificationInQueue(message);
           break;
+        case NotificationChannel.IN_APP_PUSH:
+          await this.createNotification(message);
+          await this.handlePushNotificationInQueue(message);
+          break;
         default:
           console.warn(
             `Unknown notification message channel: ${message.channel}`,
