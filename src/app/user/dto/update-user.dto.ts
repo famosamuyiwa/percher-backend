@@ -15,5 +15,5 @@ export class UpdateUserDto {
 
   @IsString()
   @IsOptional()
-  pushToken?: string;
+  expoPushToken?: string;
 }

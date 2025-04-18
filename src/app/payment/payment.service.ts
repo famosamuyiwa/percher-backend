@@ -535,7 +535,7 @@ export class PaymentService {
         title: 'New Booking Request',
         message: `You have received a new booking request for ${payment?.invoice?.booking?.property?.name}`,
         status: NotificationStatus.UNREAD,
-        channel: NotificationChannel.IN_APP,
+        channel: NotificationChannel.IN_APP_PUSH,
       };
 
       // Publish notification to RabbitMQ queue
