@@ -73,7 +73,7 @@ export class UserService {
       // First, find and nullify any other users with the same token
       await this.userRepository.update(
         { expoPushToken: updateUserPushTokenDto.expoPushToken, id: Not(id) },
-        { expoPushToken: undefined },
+        { expoPushToken: null },
       );
 
       // Then update the current user's token
