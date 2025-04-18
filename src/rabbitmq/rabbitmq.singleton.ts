@@ -241,7 +241,7 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
         },
       );
       console.log(
-        `Message published successfully to queue ${queueName}:`,
+        `Message ${message} published successfully to queue ${queueName}:`,
         result,
       );
       return result;

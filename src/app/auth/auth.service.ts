@@ -1,6 +1,7 @@
 import {
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -17,14 +18,21 @@ import {
   generateReferralCode,
   handleError,
 } from 'utils/helper-methods';
-import { ApiResponse, OAuthRequest } from 'interfaces';
+import { ApiResponse, INotification, OAuthRequest } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
 import { OtpLog } from 'rdbms/entities/OtpLog.entity';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from 'rdbms/entities/RefreshToken.entity';
 import { v4 as uuidv4 } from 'uuid';
-import { ResponseStatus, defaultAvatar } from 'enums';
+import {
+  NotificationChannel,
+  NotificationType,
+  QUEUE_NAME,
+  ResponseStatus,
+  defaultAvatar,
+} from 'enums';
 import { Wallet } from 'rdbms/entities/Wallet.entity';
+import { RabbitMQSingleton } from 'src/rabbitmq/rabbitmq.singleton';
 
 @Injectable()
 export class AuthService {
@@ -40,6 +48,8 @@ export class AuthService {
     @InjectRepository(Wallet)
     private readonly walletRepository: Repository<Wallet>,
     private jwtService: JwtService,
+    @Inject('RABBITMQ_SINGLETON')
+    private readonly rabbitMQ: RabbitMQSingleton,
   ) {}
 
   async register(userDetails: CreateAuthDto) {
@@ -232,11 +242,28 @@ export class AuthService {
       const otpLog = this.otpLogRepository.create({
         configLength: '' + configLength,
         email,
-        lifetime: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes in milliseconds
+        lifetime: new Date(Date.now() + 10 * 60 * 1000), // 5 minutes in milliseconds
         token,
         isDeactivated: false,
       });
-      this.otpLogRepository.save(otpLog);
+
+      await this.otpLogRepository.save(otpLog);
+
+      // Send email
+      const message: INotification = {
+        user: null,
+        type: NotificationType.EMAIL_VERIFICATION,
+        title: '',
+        message: '',
+        status: undefined,
+        channel: NotificationChannel.EMAIL,
+        data: {
+          otp: token,
+        },
+      };
+
+      // Publish notification to RabbitMQ queue
+      await this.rabbitMQ.pushToQueue(QUEUE_NAME.NOTIFICATION, message);
     } catch (err) {
       this.log.error(`${err}`);
 

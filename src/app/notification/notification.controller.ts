@@ -9,8 +9,6 @@ import {
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { JwtAuthGuard } from 'guards/jwt-auth.guard';
-import { NotificationType } from 'enums';
-import { NotificationStatus } from 'enums';
 
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
@@ -45,17 +43,11 @@ export class NotificationController {
     return this.notificationService.markAllAsRead(req.userId);
   }
 
-  @Post('test-rabbitmq')
-  async testRabbitMQ(@Request() req) {
-    const testNotification = {
-      user: req.userId,
-      type: NotificationType.SYSTEM,
-      title: 'Test Notification',
-      message: 'This is a test notification to verify RabbitMQ functionality',
-      data: { test: true },
-      status: NotificationStatus.UNREAD,
-    };
-
-    return this.notificationService.createNotification(testNotification);
+  @Post('email-test')
+  async emailTest() {
+    return this.notificationService.sendVerificationEmail(
+      'barrakudadev@gmail.com',
+      '8070',
+    );
   }
 }

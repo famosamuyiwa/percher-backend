@@ -3,7 +3,12 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { Booking } from 'rdbms/entities/Booking.entity';
-import { BookingStatus, NotificationType, NotificationStatus } from 'enums';
+import {
+  BookingStatus,
+  NotificationType,
+  NotificationStatus,
+  NotificationChannel,
+} from 'enums';
 import { NotificationService } from 'src/app/notification/notification.service';
 
 @Injectable()
@@ -60,6 +65,7 @@ export class CronService {
           title: 'Booking Started',
           message: `Your booking at ${booking.property.name} has started today.`,
           status: NotificationStatus.UNREAD,
+          channel: NotificationChannel.IN_APP,
           data: {
             bookingId: booking.id,
             propertyId: booking.property.id,
@@ -73,6 +79,7 @@ export class CronService {
           title: 'Guest Checked In',
           message: `A guest checks in at ${booking.property.name} today.`,
           status: NotificationStatus.UNREAD,
+          channel: NotificationChannel.IN_APP,
           data: {
             bookingId: booking.id,
             propertyId: booking.property.id,
@@ -131,6 +138,7 @@ export class CronService {
           title: 'Booking Completed',
           message: `Your booking at ${booking.property.name} has ended.`,
           status: NotificationStatus.UNREAD,
+          channel: NotificationChannel.IN_APP,
           data: {
             bookingId: booking.id,
             propertyId: booking.property.id,
@@ -144,6 +152,7 @@ export class CronService {
           title: 'Booking Completed',
           message: `A guest has checked out from ${booking.property.name}.`,
           status: NotificationStatus.UNREAD,
+          channel: NotificationChannel.IN_APP,
           data: {
             bookingId: booking.id,
             propertyId: booking.property.id,

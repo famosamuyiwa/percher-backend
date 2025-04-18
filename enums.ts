@@ -121,6 +121,15 @@ export enum NotificationType {
   PAYMENT_FAILED = 'Payment Failed',
   REFUND = 'Refund',
   SYSTEM = 'System',
+  EMAIL_VERIFICATION = 'Email Verification',
+}
+
+export enum NotificationChannel {
+  SMS = 'SMS',
+  EMAIL = 'EMAIL',
+  SMS_EMAIL = 'SMS_EMAIL',
+  IN_APP = 'IN_APP',
+  PUSH = 'PUSH',
 }
 
 export enum NotificationStatus {

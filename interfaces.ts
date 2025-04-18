@@ -2,6 +2,7 @@ import {
   BookingStatus,
   Category,
   LoginProvider,
+  NotificationChannel,
   NotificationStatus,
   NotificationType,
   PerchTypes,
@@ -62,8 +63,9 @@ export interface IPersist<T> {
 export interface INotification {
   user: any;
   type: NotificationType;
-  status: NotificationStatus;
+  status?: NotificationStatus;
   title: string;
   message: string;
+  channel: NotificationChannel;
   data?: any;
 }

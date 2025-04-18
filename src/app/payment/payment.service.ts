@@ -23,6 +23,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Payment } from 'rdbms/entities/Payment.entity';
 import {
   BookingStatus,
+  NotificationChannel,
   PaymentStatus,
   PaymentType,
   QUEUE_NAME,
@@ -40,7 +41,6 @@ import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { RabbitMQSingleton } from '../../rabbitmq/rabbitmq.singleton';
 import { NotificationType, NotificationStatus } from 'enums';
 import { INotification } from 'interfaces';
-import { PaymentQueueService } from './payment-processing.queue.service';
 
 @Injectable()
 export class PaymentService {
@@ -535,6 +535,7 @@ export class PaymentService {
         title: 'New Booking Request',
         message: `You have received a new booking request for ${payment?.invoice?.booking?.property?.name}`,
         status: NotificationStatus.UNREAD,
+        channel: NotificationChannel.IN_APP,
       };
 
       // Publish notification to RabbitMQ queue

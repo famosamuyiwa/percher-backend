@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   forwardRef,
   HttpStatus,
@@ -8,22 +9,25 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from 'rdbms/entities/Notification.entity';
-import { User } from 'rdbms/entities/User.entity';
 import {
+  NotificationChannel,
   NotificationStatus,
   NotificationType,
   QUEUE_NAME,
   ResponseStatus,
 } from 'enums';
-import { handleError } from 'utils/helper-methods';
+import { getEnvVariable, handleError } from 'utils/helper-methods';
 import { INotification } from 'interfaces';
 import { NotificationGateway } from './notification.gateway';
 import { RabbitMQSingleton } from '../../rabbitmq/rabbitmq.singleton';
+import { Resend } from 'resend';
+import { render } from '@react-email/render';
+import { WelcomeEmail } from './templates/welcome-email';
+import { VerificationEmail } from './templates/verification-email';
 
 @Injectable()
-export class NotificationService implements OnModuleInit {
-  private readonly QUEUE_NAME = 'notification';
-  private readonly BATCH_SIZE = 100; // Process notifications in batches of 100
+export class NotificationService {
+  private readonly resend = new Resend(getEnvVariable('RESEND_API_KEY'));
 
   constructor(
     @InjectRepository(Notification)
@@ -34,45 +38,60 @@ export class NotificationService implements OnModuleInit {
     private readonly rabbitMQ: RabbitMQSingleton,
   ) {}
 
-  async onModuleInit() {
-    // Register the notification queue
-    await this.rabbitMQ.registerQueue(QUEUE_NAME.NOTIFICATION);
-    // Start consuming notification messages
-    await this.rabbitMQ.consumeMessages(
-      this.QUEUE_NAME,
-      this.processNotification.bind(this),
-    );
-  }
-
-  private async processNotification(message: any): Promise<void> {
-    const {
-      notificationId,
-      user,
-      type,
-      title,
-      message: notificationMessage,
-      data,
-      createdAt,
-    } = message;
-
+  async process(message) {
     try {
-      await this.createNotification({
-        user,
-        type,
-        title,
-        message: notificationMessage,
-        data,
-        status: NotificationStatus.UNREAD,
-      });
-    } catch (error) {
-      console.error('Error sending WebSocket notification:', error);
-      throw error;
+      switch (message.channel) {
+        case NotificationChannel.EMAIL:
+          this.handleEmailInQueue(message);
+          break;
+        case NotificationChannel.SMS:
+          break;
+        case NotificationChannel.SMS_EMAIL:
+          break;
+        case NotificationChannel.IN_APP:
+          await this.createNotification(message);
+          break;
+        case NotificationChannel.PUSH:
+          break;
+        default:
+          console.warn(
+            `Unknown notification message channel: ${message.channel}`,
+          );
+      }
+    } catch (err) {
+      handleError(err);
     }
   }
 
+  // try {
+  // const {
+  //   notificationId,
+  //   user,
+  //   type,
+  //   title,
+  //   message: notificationMessage,
+  //   data,
+  //   createdAt,
+  // } = message;
+  //   await this.createNotification({
+  //     user,
+  //     type,
+  //     title,
+  //     message: notificationMessage,
+  //     data,
+  //     status: NotificationStatus.UNREAD,
+  //   });
+  // } catch (error) {
+  //   console.error('Error sending WebSocket notification:', error);
+  //   throw error;
+  // }
+
   async createNotification(data: INotification) {
     try {
-      const notification = this.notificationRepository.create(data);
+      const notification = this.notificationRepository.create({
+        ...data,
+        status: NotificationStatus.UNREAD,
+      });
       const savedNotification =
         await this.notificationRepository.save(notification);
       await this.notificationGateway.sendNotificationToUser(data.user, data);
@@ -204,5 +223,43 @@ export class NotificationService implements OnModuleInit {
         status: NotificationStatus.UNREAD,
       })
       .getCount();
+  }
+
+  async sendEmail(to: string, subject: string, html: string) {
+    try {
+      await this.resend.emails.send({
+        from: `Percher <${getEnvVariable('RESEND_FROM_EMAIL')}>`,
+        to,
+        subject,
+        html,
+      });
+      console.log(`✅ Email sent to ${to}`);
+    } catch (err) {
+      console.error('❌ Error sending email:', err);
+      throw new Error('Failed to send email');
+    }
+  }
+
+  async sendWelcomeEmail(to: string, name: string) {
+    const emailComponent = WelcomeEmail({ name });
+    const html = await render(emailComponent);
+    await this.sendEmail(to, 'Welcome to Our App!', html);
+  }
+
+  async sendVerificationEmail(to: string, otp: string) {
+    const emailComponent = VerificationEmail({ otp });
+    const html = await render(emailComponent);
+    await this.sendEmail(to, 'Verify Your Email Address', html);
+  }
+
+  async handleEmailInQueue(message: INotification) {
+    switch (message.type) {
+      case NotificationType.EMAIL_VERIFICATION:
+        await this.sendVerificationEmail(
+          'barrakudadev@gmail.com',
+          message.data?.otp,
+        );
+        break;
+    }
   }
 }
