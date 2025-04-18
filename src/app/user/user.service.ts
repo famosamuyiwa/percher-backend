@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ApiResponse } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
@@ -9,6 +9,8 @@ import { ResponseStatus } from 'enums';
 
 @Injectable()
 export class UserService {
+  private readonly log = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
