@@ -121,7 +121,18 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
         'RABBITMQ_URI',
         'amqp://localhost:5672',
       );
-      this.connection = await amqp.connect(uri);
+      this.connection = await amqp.connect(uri, {
+        heartbeat: 30,
+        timeout: 30000,
+        reconnect: true,
+        reconnectDelay: 5000,
+      });
+
+      // Monitor heartbeat
+      this.connection.on('heartbeat', () => {
+        console.log('RabbitMQ heartbeat received');
+      });
+
       this.channel = await this.connection.createChannel();
       console.log('Successfully connected to RabbitMQ');
     } catch (error) {
