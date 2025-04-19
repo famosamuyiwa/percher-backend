@@ -39,6 +39,9 @@ export class User extends BaseEntity {
   })
   role: Roles;
 
+  @Column({ type: 'varchar', nullable: true })
+  expoPushToken?: string | null;
+
   @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
   referredBy?: User;
 

@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ApiResponse } from 'interfaces';
 import { User } from 'rdbms/entities/User.entity';
@@ -6,9 +6,13 @@ import { Repository } from 'typeorm';
 import { handleError } from 'utils/helper-methods';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResponseStatus } from 'enums';
+import { UpdateUserPushTokenDto } from './dto/update-user-push-token.dto';
+import { Not } from 'typeorm';
 
 @Injectable()
 export class UserService {
+  private readonly log = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -53,6 +57,35 @@ export class UserService {
         status: ResponseStatus.SUCCESS,
         message: 'User updated successfully',
         data: user,
+      };
+
+      return payload;
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  async updateUserPushToken(
+    id: number,
+    updateUserPushTokenDto: UpdateUserPushTokenDto,
+  ) {
+    try {
+      // First, find and nullify any other users with the same token
+      await this.userRepository.update(
+        { expoPushToken: updateUserPushTokenDto.expoPushToken, id: Not(id) },
+        { expoPushToken: null },
+      );
+
+      // Then update the current user's token
+      await this.userRepository.update(id, {
+        expoPushToken: updateUserPushTokenDto.expoPushToken,
+      });
+
+      const payload: ApiResponse = {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Push token updated successfully',
+        data: null,
       };
 
       return payload;

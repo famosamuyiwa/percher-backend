@@ -530,12 +530,12 @@ export class PaymentService {
 
       // Create notification for the host
       const message: INotification = {
-        user: payment?.invoice?.booking?.host?.id,
+        user: payment?.invoice?.booking?.host,
         type: NotificationType.BOOKING_REQUEST,
         title: 'New Booking Request',
         message: `You have received a new booking request for ${payment?.invoice?.booking?.property?.name}`,
         status: NotificationStatus.UNREAD,
-        channel: NotificationChannel.IN_APP,
+        channel: NotificationChannel.IN_APP_PUSH,
       };
 
       // Publish notification to RabbitMQ queue

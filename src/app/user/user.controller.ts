@@ -6,10 +6,12 @@ import {
   Param,
   Put,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from 'guards/jwt-auth.guard';
+import { UpdateUserPushTokenDto } from './dto/update-user-push-token.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('user')
@@ -21,16 +23,27 @@ export class UserController {
     return this.userService.getUserByUserId(id);
   }
 
-  @Put(':id')
-  updateUserByUserId(
-    @Param('id') id: number,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    return this.userService.update(id, updateUserDto);
+  @Put('')
+  updateCurrentUser(@Body() updateUserDto: UpdateUserDto, @Request() req) {
+    const loggedInUserId = req.userId;
+    return this.userService.update(loggedInUserId, updateUserDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: number) {
-    return this.userService.remove(id);
+  @Put('/push-token')
+  updateUserPushToken(
+    @Body() updateUserPushTokenDto: UpdateUserPushTokenDto,
+    @Request() req,
+  ) {
+    const loggedInUserId = req.userId;
+    return this.userService.updateUserPushToken(
+      loggedInUserId,
+      updateUserPushTokenDto,
+    );
+  }
+
+  @Delete('')
+  remove(@Request() req) {
+    const loggedInUserId = req.userId;
+    return this.userService.remove(loggedInUserId);
   }
 }

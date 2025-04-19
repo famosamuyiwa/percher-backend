@@ -10,6 +10,7 @@ import {
   UserType,
 } from 'enums';
 import { Location } from 'rdbms/entities/Location.entity';
+import { User } from 'rdbms/entities/User.entity';
 
 export interface ApiResponse<T = any> {
   code: number;
@@ -61,7 +62,7 @@ export interface IPersist<T> {
 }
 
 export interface INotification {
-  user: any;
+  user: User | null | undefined;
   type: NotificationType;
   status?: NotificationStatus;
   title: string;
