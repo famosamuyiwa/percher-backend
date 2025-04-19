@@ -218,7 +218,8 @@ export class NotificationService {
   async sendEmail(to: string, subject: string, html: string) {
     try {
       await this.resend.emails.send({
-        from: `Percher <${getEnvVariable('RESEND_FROM_EMAIL')}>`,
+        from: `Percher <${getEnvVariable('NO_REPLY_EMAIL')}>`,
+        replyTo: getEnvVariable('NO_REPLY_EMAIL'),
         to,
         subject,
         html,
