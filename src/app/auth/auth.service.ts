@@ -259,6 +259,7 @@ export class AuthService {
         channel: NotificationChannel.EMAIL,
         data: {
           otp: token,
+          email,
         },
       };
 
