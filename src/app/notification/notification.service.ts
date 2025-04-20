@@ -244,10 +244,11 @@ export class NotificationService {
   }
 
   async handleEmailInQueue(message: INotification) {
+    if (!message.user) return;
     switch (message.type) {
       case NotificationType.EMAIL_VERIFICATION:
         await this.sendVerificationEmail(
-          'barrakudadev@gmail.com',
+          message.user?.email,
           message.data?.otp,
         );
         break;
