@@ -113,7 +113,10 @@ export class PropertyService {
       if (from === UserType.GUEST) {
         queryBuilder
           .innerJoin('property.host', 'host')
-          .andWhere('host.id != :userId', { userId });
+          .andWhere('host.id != :userId', { userId })
+          .andWhere('property.status = :status', {
+            status: RegistrationStatus.APPROVED,
+          });
       }
 
       if (from === UserType.ADMIN) {

@@ -63,7 +63,7 @@ export function VerificationEmail({ otp }: Props) {
             </Link>
             . View our{' '}
             <Link
-              href="https://percher.ng/privacy"
+              href="https://percher.africa/privacy"
               target="_blank"
               style={link}
             >
