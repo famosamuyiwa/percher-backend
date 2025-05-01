@@ -94,6 +94,9 @@ export class Property extends BaseEntity {
   @Index()
   category?: Category | null;
 
+  @Column({ nullable: true, default: 1 })
+  numberOfGuests?: number;
+
   @ManyToOne(() => User, (user) => user.properties)
   @Index() // Searching properties by host (owner)
   host: User;
