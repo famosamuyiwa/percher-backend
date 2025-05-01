@@ -29,6 +29,9 @@ export class Booking extends BaseEntity {
   @Column({ nullable: true })
   checkOut?: string;
 
+  @Column({ nullable: true, default: 1 })
+  numberOfGuests?: number;
+
   @Column({
     type: 'enum',
     enum: ChargeType,
