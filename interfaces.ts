@@ -46,13 +46,15 @@ export interface PerchRegistrationFormData {
 }
 
 export interface Filter {
-  // location?: Partial<Location>;
+  location?: string;
   limit?: number;
   category?: Category;
   from?: UserType;
   bookingStatus?: BookingStatus;
   perchType?: PerchTypes;
   searchTerm?: string;
+  periodOfStay?: string;
+  numberOfGuests?: number;
 }
 
 export interface IPersist<T> {

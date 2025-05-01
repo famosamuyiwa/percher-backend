@@ -78,7 +78,16 @@ export class PropertyService {
   }
 
   async findAll(filter: Filter, userId: number, cursor?: number) {
-    const { limit, category, from, perchType, searchTerm } = filter;
+    const {
+      limit,
+      category,
+      from,
+      perchType,
+      searchTerm,
+      location,
+      numberOfGuests,
+      periodOfStay,
+    } = filter;
     try {
       const queryBuilder = this.propertyRepository
         .createQueryBuilder('property')
@@ -93,6 +102,22 @@ export class PropertyService {
       if (perchType) {
         queryBuilder.andWhere('property.type = :perchType', { perchType });
       }
+
+      if (location) {
+        queryBuilder.andWhere('location.address ILIKE :location', {
+          location: `%${location}%`,
+        });
+      }
+
+      if (numberOfGuests) {
+        queryBuilder.andWhere('property.numberOfGuests >= :numberOfGuests', {
+          numberOfGuests,
+        });
+      }
+
+      // if (periodOfStay) {
+      //   queryBuilder.andWhere('location.address ILIKE :location', { location });
+      // }
 
       if (searchTerm) {
         queryBuilder.andWhere(
@@ -125,12 +150,14 @@ export class PropertyService {
         });
       }
 
-      // Apply cursor condition if provided
-      if (cursor) {
-        queryBuilder.andWhere('property.id < :cursor', { cursor });
-      }
+      // Clone the query builder for count
+      const countQueryBuilder = queryBuilder.clone();
+      countQueryBuilder.skip(undefined).take(undefined); // Remove pagination
 
-      const properties = await queryBuilder.getMany();
+      const [properties, totalCount] = await Promise.all([
+        queryBuilder.getMany(),
+        countQueryBuilder.getCount(),
+      ]);
 
       // Get the next cursor (last record's ID)
       const nextCursor = properties.length
@@ -142,7 +169,8 @@ export class PropertyService {
         status: ResponseStatus.SUCCESS,
         message: 'Property fetch successful',
         data: properties,
-        nextCursor, // Return nextCursor for the next batch
+        totalCount,
+        nextCursor: nextCursor, // Return nextCursor for the next batch
       };
     } catch (err) {
       console.log('err', err);
