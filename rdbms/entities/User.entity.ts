@@ -13,6 +13,7 @@ import { Property } from './Property.entity';
 import { Wallet } from './Wallet.entity';
 import { Notification } from './Notification.entity';
 import { Roles } from 'enums';
+import { MediaUpload } from './MediaUpload';
 @Entity('users')
 export class User extends BaseEntity {
   @Column({ unique: true })
@@ -37,6 +38,9 @@ export class User extends BaseEntity {
     default: Roles.USER,
   })
   role: Roles;
+
+  @Column({ type: 'varchar', nullable: true })
+  expoPushToken?: string | null;
 
   @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
   referredBy?: User;
@@ -68,4 +72,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Notification, (notification) => notification.user)
   notifications: Notification[];
+
+  @OneToMany(() => MediaUpload, (mediaUpload) => mediaUpload.user)
+  mediaUploads: MediaUpload[];
 }

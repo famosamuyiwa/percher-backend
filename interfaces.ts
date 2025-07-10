@@ -2,11 +2,15 @@ import {
   BookingStatus,
   Category,
   LoginProvider,
+  NotificationChannel,
   NotificationStatus,
   NotificationType,
   PerchTypes,
+  QUEUE_NAME,
   UserType,
 } from 'enums';
+import { Location } from 'rdbms/entities/Location.entity';
+import { User } from 'rdbms/entities/User.entity';
 
 export interface ApiResponse<T = any> {
   code: number;
@@ -29,7 +33,7 @@ export interface PerchRegistrationFormData {
   bathrooms: number;
   description: string;
   header: string;
-  location: string;
+  location: Location;
   price: number;
   cautionFee: number;
   gallery: string[];
@@ -49,6 +53,8 @@ export interface Filter {
   bookingStatus?: BookingStatus;
   perchType?: PerchTypes;
   searchTerm?: string;
+  periodOfStay?: string;
+  numberOfGuests?: number;
 }
 
 export interface IPersist<T> {
@@ -57,11 +63,12 @@ export interface IPersist<T> {
   payload: T;
 }
 
-export interface INotification<T> {
-  user: any;
+export interface INotification {
+  user: User | null | undefined;
   type: NotificationType;
-  status: NotificationStatus;
+  status?: NotificationStatus;
   title: string;
   message: string;
-  data?: T;
+  channel: NotificationChannel;
+  data?: any;
 }

@@ -1,6 +1,8 @@
 // src/utils/validation-log.helper.ts
 import { HttpException, HttpStatus } from '@nestjs/common';
-
+import { MediaUploadType, ReviewAction, RegistrationStatus } from 'enums';
+import { Property } from 'rdbms/entities/Property.entity';
+import { MediaUpload } from 'rdbms/entities/MediaUpload';
 export async function handleResponse(response) {
   try {
     console.log(response);
@@ -64,3 +66,31 @@ export const getEnvVariable = (key: string): string => {
   }
   return value;
 };
+
+export function getFilteredPropertyMedia(mediaUploads: MediaUpload[]) {
+  if (!mediaUploads)
+    return {
+      gallery: [],
+      proofOfIdentity: [],
+      proofOfOwnership: [],
+    };
+
+  const filteredMediaList = {
+    gallery: [],
+    proofOfIdentity: [],
+    proofOfOwnership: [],
+  };
+  mediaUploads.map((media: any) => {
+    filteredMediaList[media.mediaType].push(media.mediaUrl);
+  });
+  return filteredMediaList;
+}
+
+export function getStatusFromAction(action: ReviewAction) {
+  switch (action) {
+    case ReviewAction.APPROVE:
+      return RegistrationStatus.APPROVED;
+    case ReviewAction.REJECT:
+      return RegistrationStatus.REJECTED;
+  }
+}

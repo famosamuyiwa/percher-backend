@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   forwardRef,
   HttpStatus,
@@ -8,76 +9,82 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from 'rdbms/entities/Notification.entity';
-import { User } from 'rdbms/entities/User.entity';
 import {
+  NotificationChannel,
   NotificationStatus,
   NotificationType,
   QUEUE_NAME,
   ResponseStatus,
 } from 'enums';
-import { handleError } from 'utils/helper-methods';
+import { getEnvVariable, handleError } from 'utils/helper-methods';
 import { INotification } from 'interfaces';
 import { NotificationGateway } from './notification.gateway';
 import { RabbitMQSingleton } from '../../rabbitmq/rabbitmq.singleton';
+import { Resend } from 'resend';
+import { render } from '@react-email/render';
+import { WelcomeEmail } from './templates/welcome-email';
+import { VerificationEmail } from './templates/verification-email';
+import { PushNotificationService } from './push-notification.service';
 
 @Injectable()
-export class NotificationService implements OnModuleInit {
-  private readonly QUEUE_NAME = 'notification';
-  private readonly BATCH_SIZE = 100; // Process notifications in batches of 100
+export class NotificationService {
+  private readonly resend = new Resend(getEnvVariable('RESEND_API_KEY'));
 
   constructor(
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
     @Inject(forwardRef(() => NotificationGateway))
     private readonly notificationGateway: NotificationGateway,
     @Inject('RABBITMQ_SINGLETON')
     private readonly rabbitMQ: RabbitMQSingleton,
+    private readonly pushNotificationService: PushNotificationService,
   ) {}
 
-  async onModuleInit() {
-    // Register the notification queue
-    await this.rabbitMQ.registerQueue(QUEUE_NAME.NOTIFICATION);
-    // Start consuming notification messages
-    await this.rabbitMQ.consumeMessages(
-      this.QUEUE_NAME,
-      this.processNotification.bind(this),
-    );
-  }
-
-  private async processNotification(message: any): Promise<void> {
-    const {
-      notificationId,
-      user,
-      type,
-      title,
-      message: notificationMessage,
-      data,
-      createdAt,
-    } = message;
-
+  async process(message) {
     try {
-      await this.createNotification({
-        user,
-        type,
-        title,
-        message: notificationMessage,
-        data,
-        status: NotificationStatus.UNREAD,
-      });
-    } catch (error) {
-      console.error('Error sending WebSocket notification:', error);
-      throw error;
+      switch (message.channel) {
+        case NotificationChannel.EMAIL:
+          this.handleEmailInQueue(message);
+          break;
+        case NotificationChannel.SMS:
+          break;
+        case NotificationChannel.SMS_EMAIL:
+          break;
+        case NotificationChannel.IN_APP:
+          await this.createNotification(message);
+          break;
+        case NotificationChannel.PUSH:
+          await this.handlePushNotificationInQueue(message);
+          break;
+        case NotificationChannel.IN_APP_PUSH:
+          await this.createNotification(message);
+          await this.handlePushNotificationInQueue(message);
+          break;
+        default:
+          console.warn(
+            `Unknown notification message channel: ${message.channel}`,
+          );
+      }
+    } catch (err) {
+      handleError(err);
     }
   }
 
-  async createNotification(data: INotification<any>) {
+  async createNotification(data: INotification) {
+    if (!data.user) return;
+
     try {
-      const notification = this.notificationRepository.create(data);
+      const notification = this.notificationRepository.create({
+        user: { id: data.user.id },
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        data: data.data,
+        status: NotificationStatus.UNREAD,
+      });
       const savedNotification =
         await this.notificationRepository.save(notification);
-      await this.notificationGateway.sendNotificationToUser(data.user, data);
+      await this.notificationGateway.sendNotificationToUser(data.user.id, data);
       return savedNotification;
     } catch (error) {
       handleError(error);
@@ -206,5 +213,76 @@ export class NotificationService implements OnModuleInit {
         status: NotificationStatus.UNREAD,
       })
       .getCount();
+  }
+
+  async sendEmail(to: string, subject: string, html: string) {
+    try {
+      await this.resend.emails.send({
+        from: `Percher <${getEnvVariable('NO_REPLY_EMAIL')}>`,
+        replyTo: getEnvVariable('NO_REPLY_EMAIL'),
+        to,
+        subject,
+        html,
+      });
+      console.log(`✅ Email sent to ${to}`);
+    } catch (err) {
+      console.error('❌ Error sending email:', err);
+      throw new Error('Failed to send email');
+    }
+  }
+
+  async sendWelcomeEmail(to: string, name: string) {
+    const emailComponent = WelcomeEmail({ name });
+    const html = await render(emailComponent);
+    await this.sendEmail(to, 'Welcome to Our App!', html);
+  }
+
+  async sendVerificationEmail(to: string, otp: string) {
+    const emailComponent = VerificationEmail({ otp });
+    const html = await render(emailComponent);
+    await this.sendEmail(to, 'Verify Your Email Address', html);
+  }
+
+  async handleEmailInQueue(message: INotification) {
+    switch (message.type) {
+      case NotificationType.EMAIL_VERIFICATION:
+        await this.sendVerificationEmail(
+          message.user?.email || message.data?.email,
+          message.data?.otp,
+        );
+        break;
+    }
+  }
+
+  async handlePushNotificationInQueue(message: INotification) {
+    if (!message.user?.expoPushToken) return;
+    console.log(`sending push notification for: ${message}`);
+    await this.pushNotificationService.sendPushNotification(
+      message.user.expoPushToken,
+      message.title,
+      message.message,
+      message.data,
+    );
+  }
+
+  async sendContactFormEmail(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    subject: string;
+    message: string;
+  }) {
+    const fullName = `${data.firstName} ${data.lastName}`;
+    await this.resend.emails.send({
+      from: `Contact Form <${getEnvVariable('NO_REPLY_EMAIL')}>`,
+      to: 'support@percher.africa',
+      subject: `${data.subject}`,
+      replyTo: data.email,
+      html: `<p><strong>Name:</strong> ${fullName}</p>
+             <p><strong>Email:</strong> ${data.email}</p>
+             <p><strong>Message:</strong><br>${data.message}</p>`,
+    });
+
+    return { message: 'Email sent successfully' };
   }
 }

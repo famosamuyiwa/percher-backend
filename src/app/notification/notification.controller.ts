@@ -6,17 +6,17 @@ import {
   UseGuards,
   Request,
   Query,
+  Body,
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { JwtAuthGuard } from 'guards/jwt-auth.guard';
-import { NotificationType } from 'enums';
-import { NotificationStatus } from 'enums';
+import { ContactFormDto } from './dto/contact-form.dto';
 
-@UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getUserNotifications(
     @Request() req,
@@ -30,32 +30,35 @@ export class NotificationController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('unread/count')
   async getUnreadCount(@Request() req) {
     return this.notificationService.getUnreadCount(req.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post(':id/read')
   async markAsRead(@Param('id') id: string, @Request() req) {
     return this.notificationService.markAsRead(+id, req.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('read-all')
   async markAllAsRead(@Request() req) {
     return this.notificationService.markAllAsRead(req.userId);
   }
 
-  @Post('test-rabbitmq')
-  async testRabbitMQ(@Request() req) {
-    const testNotification = {
-      user: req.userId,
-      type: NotificationType.SYSTEM,
-      title: 'Test Notification',
-      message: 'This is a test notification to verify RabbitMQ functionality',
-      data: { test: true },
-      status: NotificationStatus.UNREAD,
-    };
+  @UseGuards(JwtAuthGuard)
+  @Post('email-test')
+  async emailTest() {
+    return this.notificationService.sendVerificationEmail(
+      'barrakudadev@gmail.com',
+      '8070',
+    );
+  }
 
-    return this.notificationService.createNotification(testNotification);
+  @Post('contact-form')
+  sendContactFormMessage(@Body() body: ContactFormDto) {
+    return this.notificationService.sendContactFormEmail(body);
   }
 }

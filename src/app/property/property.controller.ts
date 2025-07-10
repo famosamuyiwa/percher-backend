@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   Query,
+  Put,
 } from '@nestjs/common';
 import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -31,23 +32,27 @@ export class PropertyController {
 
   @Get()
   findAll(
-    @Query('location') location: string,
     @Query('limit') limit: number = 10,
     @Query('cursor') cursor: number,
     @Query('category') category: Category,
     @Query('from') from: UserType,
     @Query('perchType') perchType: PerchTypes,
     @Query('searchTerm') searchTerm: string,
+    @Query('location') location: string,
+    @Query('numberOfGuests') numberOfGuests: number,
+    @Query('periodOfStay') periodOfStay: string,
     @Request() req,
   ) {
     const filter = {
-      location,
       limit,
       category,
       from,
       perchType:
         perchType !== ('All' as unknown as PerchTypes) ? perchType : undefined,
       searchTerm: searchTerm,
+      location,
+      numberOfGuests,
+      periodOfStay,
     };
     const loggedInUserId = req.userId;
     return this.propertyService.findAll(filter, loggedInUserId, cursor);
@@ -65,12 +70,20 @@ export class PropertyController {
     return this.propertyService.review(id, action, loggedInUserId);
   }
 
+  @Get('check-availability/:id')
+  checkAvailability(
+    @Param('id') id: number,
+    @Query('periodOfStay') periodOfStay: string,
+  ) {
+    return this.propertyService.checkAvailability(id, periodOfStay);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: number) {
     return this.propertyService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(
     @Param('id') id: string,
     @Body() updatePropertyDto: UpdatePropertyDto,

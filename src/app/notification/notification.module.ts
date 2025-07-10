@@ -5,15 +5,18 @@ import { User } from 'rdbms/entities/User.entity';
 import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
 import { NotificationGateway } from './notification.gateway';
-import { RabbitMQModule } from '../../rabbitmq/rabbitmq.module';
+import { NotificationQueueService } from './notification.queue.service';
+import { PushNotificationService } from './push-notification.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Notification, User]),
-    forwardRef(() => RabbitMQModule),
-  ],
+  imports: [TypeOrmModule.forFeature([Notification, User])],
   controllers: [NotificationController],
-  providers: [NotificationService, NotificationGateway],
-  exports: [NotificationService],
+  providers: [
+    NotificationService,
+    NotificationGateway,
+    NotificationQueueService,
+    PushNotificationService,
+  ],
+  exports: [NotificationService, NotificationQueueService],
 })
 export class NotificationModule {}

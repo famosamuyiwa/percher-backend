@@ -121,7 +121,18 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
         'RABBITMQ_URI',
         'amqp://localhost:5672',
       );
-      this.connection = await amqp.connect(uri);
+      this.connection = await amqp.connect(uri, {
+        heartbeat: 30,
+        timeout: 30000,
+        reconnect: true,
+        reconnectDelay: 5000,
+      });
+
+      // Monitor heartbeat
+      this.connection.on('heartbeat', () => {
+        console.log('RabbitMQ heartbeat received');
+      });
+
       this.channel = await this.connection.createChannel();
       console.log('Successfully connected to RabbitMQ');
     } catch (error) {
@@ -207,7 +218,7 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async publishMessage(
+  async pushToQueue(
     queueName: string,
     message: any,
     retryCount: number = 0,
@@ -241,7 +252,7 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
         },
       );
       console.log(
-        `Message published successfully to queue ${queueName}:`,
+        `Message ${message} published successfully to queue ${queueName}:`,
         result,
       );
       return result;
@@ -289,7 +300,7 @@ export class RabbitMQSingleton implements OnModuleInit, OnModuleDestroy {
                 content.retryCount <
                 (options.maxRetries ?? this.DEFAULT_OPTIONS.maxRetries)
               ) {
-                await this.publishMessage(
+                await this.pushToQueue(
                   queueName,
                   content,
                   content.retryCount + 1,

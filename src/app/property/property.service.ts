@@ -1,30 +1,40 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
-import { handleError } from 'utils/helper-methods';
+import { getStatusFromAction, handleError } from 'utils/helper-methods';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Property } from 'rdbms/entities/Property.entity';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
 import {
+  BookingStatus,
   Category,
+  MediaEntityType,
   RegistrationStatus,
   ResponseStatus,
   ReviewAction,
   UserType,
 } from 'enums';
+import { GlobalUtilService } from 'src/global-utils';
+import { propertyMediaTypes } from 'utils/constants';
 
 @Injectable()
 export class PropertyService {
   constructor(
     @InjectRepository(Property)
     private readonly propertyRepository: Repository<Property>,
+    private readonly globalUtilService: GlobalUtilService,
   ) {}
 
   async create(createPropertyDto: CreatePropertyDto, loggedInUserId) {
     try {
-      const model = this.propertyRepository.create({
-        ...createPropertyDto,
+      // Create a new property entity with the correct property names
+      const propertyData = {
         name: createPropertyDto.propertyName,
         type: createPropertyDto.propertyType,
         bed: createPropertyDto.beds,
@@ -33,8 +43,26 @@ export class PropertyService {
         checkOutPeriod: createPropertyDto.checkOutTime,
         termsAndConditions: createPropertyDto.txc,
         host: loggedInUserId,
-      });
+        description: createPropertyDto.description,
+        price: createPropertyDto.price,
+        cautionFee: createPropertyDto.cautionFee,
+        header: createPropertyDto.header,
+        chargeType: createPropertyDto.chargeType,
+        facilities: createPropertyDto.facilities,
+        location: {
+          latitude: createPropertyDto.latitude,
+          longitude: createPropertyDto.longitude,
+          address: `${createPropertyDto.streetAddress}, ${createPropertyDto.city}, ${createPropertyDto.state}. ${createPropertyDto.country}`,
+          streetAddress: createPropertyDto.streetAddress,
+          propertyNumber: createPropertyDto.propertyNumber,
+          city: createPropertyDto.city,
+          state: createPropertyDto.state,
+          country: createPropertyDto.country,
+          snapshotUrl: createPropertyDto.snapshot,
+        },
+      };
 
+      const model = this.propertyRepository.create(propertyData);
       const property = await this.propertyRepository.save(model);
 
       const payload: ApiResponse<Property> = {
@@ -45,16 +73,27 @@ export class PropertyService {
       };
       return payload;
     } catch (err) {
+      console.log('err', err);
       handleError(err);
     }
   }
 
   async findAll(filter: Filter, userId: number, cursor?: number) {
-    const { limit, category, location, from, perchType, searchTerm } = filter;
+    const {
+      limit,
+      category,
+      from,
+      perchType,
+      searchTerm,
+      location,
+      numberOfGuests,
+      periodOfStay,
+    } = filter;
     try {
       const queryBuilder = this.propertyRepository
         .createQueryBuilder('property')
         .orderBy('property.id', 'DESC')
+        .innerJoinAndSelect('property.location', 'location')
         .take(limit);
 
       if (category) {
@@ -65,9 +104,45 @@ export class PropertyService {
         queryBuilder.andWhere('property.type = :perchType', { perchType });
       }
 
+      if (location) {
+        queryBuilder.andWhere('location.address ILIKE :location', {
+          location: `%${location}%`,
+        });
+      }
+
+      if (numberOfGuests) {
+        queryBuilder.andWhere('property.numberOfGuests >= :numberOfGuests', {
+          numberOfGuests,
+        });
+      }
+
+      if (periodOfStay) {
+        const { checkIn, checkOut } = this.parsePeriodOfStay(periodOfStay);
+
+        // Exclude properties with conflicting bookings
+        queryBuilder.andWhere((qb) => {
+          const subQuery = qb
+            .subQuery()
+            .select('1')
+            .from('bookings', 'bookings')
+            .where('bookings.property = property.id')
+            .andWhere('bookings.status IN (:...statuses)', {
+              statuses: [BookingStatus.CURRENT, BookingStatus.UPCOMING],
+            })
+            .andWhere(
+              `(
+                (bookings.startDate <= :checkOut AND bookings.endDate >= :checkIn)
+              )`,
+              { checkIn, checkOut },
+            )
+            .getQuery();
+          return `NOT EXISTS ${subQuery}`;
+        });
+      }
+
       if (searchTerm) {
         queryBuilder.andWhere(
-          '(property.name ILIKE :searchTerm OR property.location ILIKE :searchTerm)',
+          '(property.name ILIKE :searchTerm OR location.address ILIKE :searchTerm)',
           {
             searchTerm: `%${searchTerm}%`,
           },
@@ -84,7 +159,10 @@ export class PropertyService {
       if (from === UserType.GUEST) {
         queryBuilder
           .innerJoin('property.host', 'host')
-          .andWhere('host.id != :userId', { userId });
+          .andWhere('host.id != :userId', { userId })
+          .andWhere('property.status = :status', {
+            status: RegistrationStatus.APPROVED,
+          });
       }
 
       if (from === UserType.ADMIN) {
@@ -93,12 +171,19 @@ export class PropertyService {
         });
       }
 
+      // Clone the query builder for count
+      const countQueryBuilder = queryBuilder.clone();
+      countQueryBuilder.skip(undefined).take(undefined); // Remove pagination
+
       // Apply cursor condition if provided
       if (cursor) {
         queryBuilder.andWhere('property.id < :cursor', { cursor });
       }
 
-      const properties = await queryBuilder.getMany();
+      const [properties, totalCount] = await Promise.all([
+        queryBuilder.getMany(),
+        countQueryBuilder.getCount(),
+      ]);
 
       // Get the next cursor (last record's ID)
       const nextCursor = properties.length
@@ -110,21 +195,42 @@ export class PropertyService {
         status: ResponseStatus.SUCCESS,
         message: 'Property fetch successful',
         data: properties,
+        totalCount,
         nextCursor, // Return nextCursor for the next batch
       };
     } catch (err) {
+      console.log('err', err);
       handleError(err);
     }
   }
 
   async findOne(id: number) {
     try {
-      const property = await this.propertyRepository.findOne({
-        where: {
-          id,
-        },
-        relations: ['host'],
-      });
+      const queryBuilder = this.propertyRepository
+        .createQueryBuilder('property')
+        .where('property.id = :id', { id })
+        .innerJoinAndSelect('property.location', 'location')
+        .innerJoinAndSelect('property.host', 'host');
+
+      const property = await queryBuilder.getOne();
+
+      if (!property)
+        throw new HttpException(
+          'Property does not exist',
+          HttpStatus.BAD_REQUEST,
+        );
+
+      //get media uploads for property
+      const mediaUploads = await this.globalUtilService.getMediaUploads(
+        property.id,
+        MediaEntityType.PROPERTY,
+        property.host.id,
+        propertyMediaTypes,
+      );
+
+      property['gallery'] = mediaUploads?.gallery ?? [];
+      property['proofOfIdentity'] = mediaUploads?.proofOfIdentity ?? [];
+      property['proofOfOwnership'] = mediaUploads?.proofOfOwnership ?? [];
 
       return {
         code: HttpStatus.OK,
@@ -133,6 +239,47 @@ export class PropertyService {
         data: property,
       };
     } catch (err) {
+      console.log('err', err);
+      handleError(err);
+    }
+  }
+
+  async checkAvailability(id: number, periodOfStay: string) {
+    console.log('period: ', periodOfStay);
+    if (!id || !periodOfStay)
+      throw new HttpException('Missing credentials', HttpStatus.BAD_REQUEST);
+
+    try {
+      const { checkIn, checkOut } = this.parsePeriodOfStay(periodOfStay);
+
+      const property = await this.propertyRepository
+        .createQueryBuilder('property')
+        .leftJoinAndSelect(
+          'property.bookings',
+          'booking',
+          `
+          booking.status IN (:...statuses)
+          AND booking.startDate <= :checkOut
+          AND booking.endDate >= :checkIn
+          `,
+          {
+            statuses: [BookingStatus.CURRENT, BookingStatus.UPCOMING],
+            checkIn,
+            checkOut,
+          },
+        )
+        .where('property.id = :id', { id })
+        .andWhere('booking.id IS NULL') // i.e. no conflicting booking
+        .getOne();
+
+      return {
+        code: HttpStatus.OK,
+        status: ResponseStatus.SUCCESS,
+        message: 'Property availability check successful',
+        data: !!property,
+      };
+    } catch (err) {
+      console.log('err', err);
       handleError(err);
     }
   }
@@ -200,13 +347,19 @@ export class PropertyService {
 
     return { message: 'Category removed successfully' };
   }
-}
 
-function getStatusFromAction(action: ReviewAction) {
-  switch (action) {
-    case ReviewAction.APPROVE:
-      return RegistrationStatus.APPROVED;
-    case ReviewAction.REJECT:
-      return RegistrationStatus.REJECTED;
+  private parsePeriodOfStay(periodOfStay: string): {
+    checkIn: Date;
+    checkOut: Date;
+  } {
+    const [checkInStr, checkOutStr] = periodOfStay.split(' - ');
+    const checkIn = new Date(checkInStr.trim());
+    const checkOut = new Date(checkOutStr.trim());
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      throw new BadRequestException('Invalid periodOfStay format');
+    }
+
+    return { checkIn, checkOut };
   }
 }
