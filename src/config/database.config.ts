@@ -11,6 +11,7 @@ import { Transaction } from 'rdbms/entities/Transaction.entity';
 import { Notification } from 'rdbms/entities/Notification.entity';
 import { Location } from 'rdbms/entities/Location.entity';
 import { MediaUpload } from 'rdbms/entities/MediaUpload';
+import { Waitlist } from 'rdbms/entities/Waitlist';
 export const entities = [
   User,
   Property,
@@ -25,6 +26,7 @@ export const entities = [
   Notification,
   Location,
   MediaUpload,
+  Waitlist,
 ];
 
 export const migrations = ['dist/migrations/*.js'];

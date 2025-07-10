@@ -70,6 +70,14 @@ export class PropertyController {
     return this.propertyService.review(id, action, loggedInUserId);
   }
 
+  @Get('check-availability/:id')
+  checkAvailability(
+    @Param('id') id: number,
+    @Query('periodOfStay') periodOfStay: string,
+  ) {
+    return this.propertyService.checkAvailability(id, periodOfStay);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: number) {
     return this.propertyService.findOne(id);

@@ -264,4 +264,25 @@ export class NotificationService {
       message.data,
     );
   }
+
+  async sendContactFormEmail(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    subject: string;
+    message: string;
+  }) {
+    const fullName = `${data.firstName} ${data.lastName}`;
+    await this.resend.emails.send({
+      from: `Contact Form <${getEnvVariable('NO_REPLY_EMAIL')}>`,
+      to: 'support@percher.africa',
+      subject: `${data.subject}`,
+      replyTo: data.email,
+      html: `<p><strong>Name:</strong> ${fullName}</p>
+             <p><strong>Email:</strong> ${data.email}</p>
+             <p><strong>Message:</strong><br>${data.message}</p>`,
+    });
+
+    return { message: 'Email sent successfully' };
+  }
 }

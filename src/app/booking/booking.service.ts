@@ -19,7 +19,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiResponse, Filter } from 'interfaces';
 import { Booking } from 'rdbms/entities/Booking.entity';
-import { RabbitMQSingleton } from 'src/rabbitmq/rabbitmq.singleton';
 import { PaymentService } from 'src/app/payment/payment.service';
 
 @Injectable()
@@ -162,7 +161,6 @@ export class BookingService {
     from: UserType,
   ) {
     try {
-      console.log('reviewing booking', id, action, userId, from);
       if (!action || !id || !userId || !from)
         throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
 
